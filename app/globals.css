@@ -46,3 +46,57 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(60, 82, 96, 0.5);
 }
+
+/* Animación de desplazamiento infinito del Skyline (Ciudad) */
+@keyframes skyline-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-skyline-scroll {
+  animation: skyline-scroll 5.5s linear infinite;
+  will-change: transform;
+}
+
+/* Animación de salto parabólico estilo Chrome T-Rex */
+@keyframes dino-jump-arc {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-28px);
+  }
+  50% {
+    transform: translateY(-30px);
+  }
+  75% {
+    transform: translateY(-16px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-dino-jump-arc {
+  animation: dino-jump-arc 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Polvo corriendo detrás del dinosaurio */
+@keyframes dust-puff {
+  0% {
+    opacity: 0.8;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-14px, -4px) scale(1.6);
+  }
+}
+
+.animate-dust {
+  animation: dust-puff 0.4s ease-out infinite;
+}

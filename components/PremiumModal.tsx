@@ -44,7 +44,7 @@ export default function PremiumModal({ isOpen, onClose, reason }: PremiumModalPr
             Descargas en 4K y Películas Sin Límites
           </h2>
           <p className="text-neutral-500 text-xs sm:text-sm mt-2 max-w-md mx-auto leading-relaxed">
-            {reason || 'Acceso completo a descargas de videos de más de 5 minutos, películas completas y máxima fidelidad 4K.'}
+            {reason || 'Acceso completo a descargas de videos largos de 1 hora, 2 horas, películas completas y máxima fidelidad 4K.'}
           </p>
         </div>
 
@@ -58,7 +58,7 @@ export default function PremiumModal({ isOpen, onClose, reason }: PremiumModalPr
               </div>
               <div>
                 <h4 className="font-bold text-neutral-900 text-xs">Películas y Series</h4>
-                <p className="text-[11px] text-neutral-500 mt-0.5">Sin límite de 5 min. Videos de 1h o 2h completas.</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Videos largos de 1 hora, 2 horas o más sin cortes.</p>
               </div>
             </div>
 

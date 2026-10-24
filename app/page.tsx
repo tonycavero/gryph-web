@@ -27,6 +27,7 @@ import {
 import AdBanner from '@/components/AdBanner';
 import PremiumModal from '@/components/PremiumModal';
 import DinoMascot from '@/components/DinoMascot';
+import TRexRunnerLoading from '@/components/TRexRunnerLoading';
 import { VideoInfo, FormatOption, detectPlatform, buildPlatformFormats } from '@/lib/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://gryph-web.onrender.com').replace(/\/+$/, '');
@@ -363,11 +364,11 @@ export default function GryphHomePage() {
     },
     {
       q: '¿Por qué la versión básica es gratis?',
-      a: 'Nuestra versión gratuita es 100% libre para videos de hasta 5 minutos y calidades estándar (720p, 1080p y MP3) gracias a los anuncios publicitarios patrocinados mostrados en la página.',
+      a: 'Nuestra versión gratuita es 100% libre para videos en calidades estándar (720p, 1080p y MP3) gracias a los anuncios publicitarios patrocinados mostrados en la página.',
     },
     {
       q: '¿Qué incluye la versión Premium Pro para películas y videos largos?',
-      a: 'La versión Pro desbloquea películas y series completas de más de 5 minutos (1 hora, 2 horas o más), resolución original 4K Ultra HD a 60 FPS sin compresión y elimina toda la publicidad con velocidad turbo 10x.',
+      a: 'La versión Pro desbloquea películas y videos largos (1 hora, 2 horas o más), resolución original 4K Ultra HD a 60 FPS sin compresión y elimina toda la publicidad con velocidad turbo 10x.',
     },
   ];
 
@@ -478,65 +479,6 @@ export default function GryphHomePage() {
           </p>
         </div>
 
-        {/* 3. Escenario Decorativo de la Mascota Dinosaurio (Ajuste Visual Compacto) */}
-        <div className="w-full max-w-2xl mb-2 sm:mb-3 px-1 relative">
-          
-          {/* Indicador de estado y porcentaje con alto contraste */}
-          <div className="flex items-center justify-between text-xs font-bold mb-1 px-2">
-            <span className="text-white font-bold flex items-center gap-1.5 text-[11px] drop-shadow-md">
-              <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping" />
-              <span>
-                {currentPhase === 'hunting' 
-                  ? 'Cazando video en curso...' 
-                  : currentPhase === 'ready' 
-                  ? '¡Presa capturada!' 
-                  : 'Listo para cazar'}
-              </span>
-            </span>
-
-            {/* Etiqueta 100% READY / Porcentaje estilizado como refuerzo */}
-            <div className={`px-2.5 py-0.5 rounded-full text-[11px] font-black transition-all shadow-sm ${
-              currentPhase === 'ready'
-                ? 'bg-emerald-500 text-white shadow-emerald-500/40 animate-bounce'
-                : currentPhase === 'hunting'
-                ? 'bg-white/35 backdrop-blur-md text-white border border-white/40'
-                : 'bg-black/30 text-white'
-            }`}>
-              {currentPhase === 'ready' ? '100% READY!' : `${progressPercent}%`}
-            </div>
-          </div>
-
-          <div 
-            ref={stageRef}
-            className="w-full h-14 sm:h-16 relative border-b-2 border-dashed border-white/35 select-none overflow-visible"
-          >
-            {/* Barra de progreso de carga */}
-            <div 
-              style={{ width: `${progressPercent}%` }}
-              className="absolute -bottom-[2px] left-0 h-[2px] bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400 shadow-[0_0_12px_rgba(251,191,36,0.9)] transition-all duration-75"
-            />
-
-            {/* Dinosaurio Mascota (Refuerzo visual proporcionado) */}
-            <div
-              style={{ left: `${mascotLeft}px` }}
-              className="absolute bottom-0 select-none transition-transform duration-75"
-            >
-              <DinoMascot state={currentPhase} />
-            </div>
-
-            {/* Presa (🎬 pasa a 🍖 al 100%) */}
-            <div 
-              className={`absolute right-3 bottom-1.5 text-2xl sm:text-3xl select-none transition-all duration-300 ${
-                preyState === 'eaten'
-                  ? 'scale-125 animate-bounce'
-                  : 'animate-pulse drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)]'
-              }`}
-            >
-              {preyState === 'eaten' ? '🍖' : '🎬'}
-            </div>
-          </div>
-        </div>
-
         {/* 4. Barra de Entrada y Botón de Acción (Optimización Móvil Responsiva) */}
         <div className="w-full max-w-2xl bg-white/80 sm:bg-white/70 backdrop-blur-2xl border border-white/60 rounded-3xl sm:rounded-full p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-[0_16px_45px_rgba(60,82,96,0.18)] focus-within:bg-white transition-all">
           <div className="flex items-center flex-1 min-w-0 pl-3 pr-2">
@@ -622,6 +564,11 @@ export default function GryphHomePage() {
             )}
           </button>
         </div>
+
+        {/* Nuevo Estado de Carga (Loading) - Animación Interactiva T-Rex y Skyline de Ciudad */}
+        {currentPhase === 'hunting' && (
+          <TRexRunnerLoading progressPercent={progressPercent} />
+        )}
 
         {/* Plataformas compatibles con detección automática universal */}
         <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-4 px-2 text-xs text-slate-700">
@@ -874,7 +821,7 @@ export default function GryphHomePage() {
               <div className="mt-6 space-y-3 text-xs text-slate-700">
                 <div className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Videos cortos de hasta <strong>5 minutos</strong></span>
+                  <span>Videos y música estándar sin límite</span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -886,7 +833,7 @@ export default function GryphHomePage() {
                 </div>
                 <div className="flex items-center gap-2.5 text-slate-400">
                   <XCircle className="w-4 h-4 text-slate-300 shrink-0" />
-                  <span>Películas y videos mayores a 5 min</span>
+                  <span>Películas y videos mayores a 1 hora, 2 horas</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-slate-400">
                   <XCircle className="w-4 h-4 text-slate-300 shrink-0" />
@@ -928,7 +875,7 @@ export default function GryphHomePage() {
                   <div className="w-4 h-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shrink-0">
                     <Check className="w-3 h-3 stroke-[3]" />
                   </div>
-                  <span><strong>Películas y Series Completas</strong> (+5 min, 1h, 2h+)</span>
+                  <span><strong>Películas y Series Completas</strong> (1 hora, 2 horas o más)</span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <div className="w-4 h-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shrink-0">

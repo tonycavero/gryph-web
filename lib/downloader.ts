@@ -262,7 +262,7 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
         try {
           const data = JSON.parse(trimmed);
           const duration = Number(data.duration) || 0;
-          const isLongVideo = duration > 300;
+          const isLongVideo = duration > 3600; // Videos mayores a 1 hora
 
           const formats: FormatOption[] = [
             {
@@ -272,7 +272,7 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
               ext: 'mp3',
               type: 'audio',
               isPremium: isLongVideo,
-              premiumReason: isLongVideo ? 'El audio dura más de 5 minutos (Requiere Plan Pro)' : undefined,
+              premiumReason: isLongVideo ? 'El audio dura más de 1 hora (1 hora, 2 horas requiere Plan Pro)' : undefined,
             },
             {
               formatId: '720p',
@@ -281,7 +281,7 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
               ext: 'mp4',
               type: 'video',
               isPremium: isLongVideo,
-              premiumReason: isLongVideo ? 'Videos largos (+5 min) requieren Plan Pro' : undefined,
+              premiumReason: isLongVideo ? 'Videos largos (+1 hora, 2 horas) requieren Plan Pro' : undefined,
             },
             {
               formatId: '1080p',
@@ -290,7 +290,7 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
               ext: 'mp4',
               type: 'video',
               isPremium: isLongVideo,
-              premiumReason: isLongVideo ? 'Videos mayores a 5 min requieren Plan Pro' : undefined,
+              premiumReason: isLongVideo ? 'Videos mayores a 1 hora, 2 horas requieren Plan Pro' : undefined,
             },
             {
               formatId: '4k',
