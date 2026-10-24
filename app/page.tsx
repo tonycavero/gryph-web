@@ -27,7 +27,6 @@ import {
 import AdBanner from '@/components/AdBanner';
 import PremiumModal from '@/components/PremiumModal';
 import DinoMascot from '@/components/DinoMascot';
-import TRexRunnerLoading from '@/components/TRexRunnerLoading';
 import { VideoInfo, FormatOption, detectPlatform, buildPlatformFormats } from '@/lib/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://gryph-web.onrender.com').replace(/\/+$/, '');
@@ -479,6 +478,110 @@ export default function GryphHomePage() {
           </p>
         </div>
 
+        {/* 3. Escenario Mejorado de Caza con Mascota Dinosaurio y Skyline de Ciudad */}
+        <div className="w-full max-w-2xl mb-3 sm:mb-4 px-1 relative select-none animate-fadeIn">
+          <div className="bg-white/80 sm:bg-white/70 backdrop-blur-2xl border border-white/80 rounded-3xl p-3 sm:p-4 shadow-[0_16px_45px_rgba(60,82,96,0.16)] overflow-hidden">
+            
+            {/* Cabecera: LED de Estado + Porcentaje en Píldora */}
+            <div className="flex items-center justify-between text-xs font-bold mb-2 px-1">
+              <span className="flex items-center gap-2 text-[11px] sm:text-xs font-black text-slate-800 tracking-wide uppercase">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                    currentPhase === 'hunting' ? 'bg-emerald-400 opacity-75' :
+                    currentPhase === 'ready' ? 'bg-emerald-500 opacity-75' :
+                    'bg-amber-400 opacity-50'
+                  }`} />
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                    currentPhase === 'hunting' ? 'bg-emerald-500' :
+                    currentPhase === 'ready' ? 'bg-emerald-600' :
+                    'bg-amber-500'
+                  }`} />
+                </span>
+                <span>
+                  {currentPhase === 'hunting' 
+                    ? 'Cazando video en curso...' 
+                    : currentPhase === 'ready' 
+                    ? '¡Presa capturada!' 
+                    : 'Listo para cazar'}
+                </span>
+              </span>
+
+              {/* Etiqueta 100% READY / Porcentaje estilizado */}
+              <div className={`px-2.5 py-0.5 rounded-full text-[11px] font-black transition-all shadow-xs ${
+                currentPhase === 'ready'
+                  ? 'bg-emerald-500 text-white shadow-emerald-500/40 animate-bounce'
+                  : currentPhase === 'hunting'
+                  ? 'bg-slate-900 text-amber-300 border border-slate-700/40'
+                  : 'bg-slate-900/10 text-slate-700'
+              }`}>
+                {currentPhase === 'ready' ? '100% READY!' : `${progressPercent}%`}
+              </div>
+            </div>
+
+            {/* Pista de Caza con Horizonte Skyline Animado (Imagen 2) */}
+            <div 
+              ref={stageRef}
+              className="relative w-full h-16 sm:h-20 bg-slate-100/60 rounded-2xl overflow-hidden border border-slate-200/70 shadow-inner flex items-end select-none"
+            >
+              {/* Skyline Panorámico en bucle continuo de la ciudad (Imagen 2) */}
+              <div className="absolute inset-0 pointer-events-none select-none overflow-hidden opacity-45">
+                <div className={`flex w-[200%] h-full ${currentPhase === 'hunting' ? 'animate-skyline-scroll' : ''}`}>
+                  <img
+                    src="/city-skyline-seamless.png"
+                    alt="City Skyline"
+                    className="w-1/2 h-full object-cover shrink-0 select-none"
+                    draggable={false}
+                  />
+                  <img
+                    src="/city-skyline-seamless.png"
+                    alt="City Skyline"
+                    className="w-1/2 h-full object-cover shrink-0 select-none"
+                    draggable={false}
+                  />
+                </div>
+              </div>
+
+              {/* Línea de suelo base */}
+              <div className="absolute bottom-[2px] left-0 right-0 h-[2px] bg-slate-800/60 pointer-events-none" />
+
+              {/* Barra de progreso de carga brillante */}
+              <div 
+                style={{ width: `${progressPercent}%` }}
+                className="absolute bottom-0 left-0 h-[3px] bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400 shadow-[0_0_12px_rgba(251,191,36,0.9)] transition-all duration-75"
+              />
+
+              {/* Dinosaurio Mascota (Desplazamiento fluido y proporcional) */}
+              <div
+                style={{ left: `${mascotLeft}px` }}
+                className="absolute bottom-1 select-none transition-transform duration-75"
+              >
+                <DinoMascot state={currentPhase} />
+
+                {/* Polvo corriendo detrás del dinosaurio */}
+                {currentPhase === 'hunting' && (
+                  <div className="absolute -left-2 bottom-1 flex gap-0.5 pointer-events-none opacity-60">
+                    <span className="w-1.5 h-1.5 rounded-xs bg-slate-500 animate-dust" />
+                    <span className="w-1 h-1 rounded-xs bg-slate-400 animate-dust" style={{ animationDelay: '0.15s' }} />
+                  </div>
+                )}
+              </div>
+
+              {/* Presa (🎬 pasa a 🍖 al 100%) */}
+              <div 
+                className={`absolute right-3 bottom-2 text-2xl sm:text-3xl select-none transition-all duration-300 ${
+                  preyState === 'eaten'
+                    ? 'scale-125 animate-bounce'
+                    : currentPhase === 'hunting'
+                    ? 'animate-pulse drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)]'
+                    : 'drop-shadow-xs'
+                }`}
+              >
+                {preyState === 'eaten' ? '🍖' : '🎬'}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* 4. Barra de Entrada y Botón de Acción (Optimización Móvil Responsiva) */}
         <div className="w-full max-w-2xl bg-white/80 sm:bg-white/70 backdrop-blur-2xl border border-white/60 rounded-3xl sm:rounded-full p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-[0_16px_45px_rgba(60,82,96,0.18)] focus-within:bg-white transition-all">
           <div className="flex items-center flex-1 min-w-0 pl-3 pr-2">
@@ -564,11 +667,6 @@ export default function GryphHomePage() {
             )}
           </button>
         </div>
-
-        {/* Nuevo Estado de Carga (Loading) - Animación Interactiva T-Rex y Skyline de Ciudad */}
-        {currentPhase === 'hunting' && (
-          <TRexRunnerLoading progressPercent={progressPercent} />
-        )}
 
         {/* Plataformas compatibles con detección automática universal */}
         <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-4 px-2 text-xs text-slate-700">
