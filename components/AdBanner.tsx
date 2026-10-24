@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { LayoutGrid } from 'lucide-react';
 
 interface AdBannerProps {
@@ -10,6 +10,33 @@ interface AdBannerProps {
 }
 
 export default function AdBanner({ type = 'leaderboard', className = '', slotId = 'AD_SLOT' }: AdBannerProps) {
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const isSuperior = type === 'leaderboard' && slotId?.toUpperCase().includes('SUPERIOR');
+    if (isSuperior && bannerRef.current) {
+      bannerRef.current.innerHTML = '';
+
+      const confScript = document.createElement('script');
+      confScript.type = 'text/javascript';
+      confScript.innerHTML = `
+        atOptions = {
+          'key' : '806c29549bcb2a6261ace73b3c126e07',
+          'format' : 'iframe',
+          'height' : 90,
+          'width' : 728,
+          'params' : {}
+        };
+      `;
+
+      const adScript = document.createElement('script');
+      adScript.type = 'text/javascript';
+      adScript.src = 'https://bellnewyork.org/22/806c29549bcb2a6261ace73b3c126e07';
+
+      bannerRef.current.appendChild(confScript);
+      bannerRef.current.appendChild(adScript);
+    }
+  }, [type, slotId]);
   // 1. Skyscraper Vertical Lateral Izquierdo (160x600)
   // Oculto en pantallas medianas o pequeñas (hidden 2xl:flex), asegurando que el centro no se comprima
   if (type === 'skyscraper-left') {
@@ -65,6 +92,22 @@ export default function AdBanner({ type = 'leaderboard', className = '', slotId 
 
   // 3. Banner Horizontal Leaderboard (728x90) con margen y padding compactos
   if (type === 'leaderboard') {
+    // Si es el banner superior, se renderiza el script publicitario de Adsterra
+    if (slotId?.toUpperCase().includes('SUPERIOR')) {
+      return (
+        <aside 
+          aria-label="Espacio Publicitario Superior (728x90)"
+          className={`w-full max-w-4xl mx-auto my-2 p-2 sm:p-2.5 bg-white/45 backdrop-blur-xl border border-white/60 rounded-2xl sm:rounded-3xl text-center relative overflow-hidden shadow-xs transition-all hover:border-white/80 flex items-center justify-center min-h-[95px] ${className}`}
+        >
+          {/* Contenedor del anuncio de Adsterra 728x90 */}
+          <div 
+            ref={bannerRef}
+            className="w-full flex items-center justify-center overflow-x-auto min-h-[90px]"
+          />
+        </aside>
+      );
+    }
+
     return (
       <div 
         aria-label="Espacio Publicitario Horizontal"
