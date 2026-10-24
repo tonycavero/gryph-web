@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Download, 
   Search, 
@@ -51,6 +51,11 @@ export default function GryphHomePage() {
 
   // FAQ accordion state
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  useEffect(() => {
+    // Keep-alive silencioso para despertar a Render al abrir la página
+    fetch(`${API_BASE_URL}/api/health`).catch(() => {});
+  }, []);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -130,13 +135,21 @@ export default function GryphHomePage() {
     };
     setVideoInfo(immediateInfo);
 
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+      setLoadingInfo(false);
+    }, 12000);
+
     fetch(`${API_BASE_URL}/api/info`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: cleanUrl }),
+      signal: abortController.signal,
     })
       .then((res) => res.json())
       .then((data) => {
+        clearTimeout(timeoutId);
         setLoadingInfo(false);
         if (data.success && data.data) {
           setVideoInfo(data.data);
@@ -144,6 +157,7 @@ export default function GryphHomePage() {
         }
       })
       .catch(() => {
+        clearTimeout(timeoutId);
         setLoadingInfo(false);
       });
 
@@ -552,15 +566,19 @@ export default function GryphHomePage() {
                   <div className="relative w-full h-full">
                     <img 
                       key={videoInfo.thumbnail}
-                      src={videoInfo.thumbnail} 
+                      src={
+                        videoInfo.thumbnail.includes('fbcdn.net') || videoInfo.thumbnail.includes('cdninstagram.com')
+                          ? `${API_BASE_URL}/api/proxy-image?url=${encodeURIComponent(videoInfo.thumbnail)}`
+                          : videoInfo.thumbnail
+                      } 
                       alt={videoInfo.title} 
                       referrerPolicy="no-referrer"
                       loading="eager"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                       onError={(e) => {
                         const target = e.currentTarget;
-                        if (!target.src.includes('/api/thumb')) {
-                          target.src = `${API_BASE_URL}/api/thumb?url=${encodeURIComponent(videoInfo.thumbnail)}`;
+                        if (!target.src.includes('/api/proxy-image') && !target.src.includes('/api/thumb')) {
+                          target.src = `${API_BASE_URL}/api/proxy-image?url=${encodeURIComponent(videoInfo.thumbnail)}`;
                         } else {
                           setImgError(true);
                         }
