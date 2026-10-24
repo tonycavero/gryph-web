@@ -159,11 +159,32 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
             },
           ];
 
+          // Extract thumbnail with robust fallbacks
+          let thumbnail = data.thumbnail || '';
+          if (!thumbnail && Array.isArray(data.thumbnails) && data.thumbnails.length > 0) {
+            const valid = data.thumbnails.filter((t: any) => t && t.url);
+            if (valid.length > 0) {
+              thumbnail = valid[valid.length - 1].url;
+            }
+          }
+
+          // Direct stream for first-frame preview if thumbnail is missing (e.g. Facebook)
+          let previewUrl: string | undefined = undefined;
+          if (Array.isArray(data.formats) && data.formats.length > 0) {
+            const videoStream = data.formats.find(
+              (f: any) => f && f.url && f.vcodec !== 'none' && (f.ext === 'mp4' || f.format_note || f.format_id)
+            );
+            if (videoStream?.url) {
+              previewUrl = videoStream.url;
+            }
+          }
+
           return resolve({
             id: data.id || 'unknown',
             title: data.title || `${platform} Video`,
             url: targetUrl,
-            thumbnail: data.thumbnail || '',
+            thumbnail,
+            previewUrl,
             duration,
             durationFormatted: formatSeconds(duration),
             uploader: data.uploader || data.channel || platform,

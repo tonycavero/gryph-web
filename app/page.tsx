@@ -45,6 +45,9 @@ export default function GryphHomePage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [isPremiumOpen, setIsPremiumOpen] = useState(false);
   const [premiumReason, setPremiumReason] = useState('');
+  const [imgError, setImgError] = useState(false);
+
+  const detectedCurrentPlatform = detectPlatform(url.trim());
 
   // FAQ accordion state
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -64,6 +67,7 @@ export default function GryphHomePage() {
     setProgressPercent(0);
     setMascotLeft(10);
     setPreyState('idle');
+    setImgError(false);
   };
 
   const handlePaste = async () => {
@@ -78,11 +82,6 @@ export default function GryphHomePage() {
     }
   };
 
-  const handleSample = (sampleUrl: string) => {
-    setUrl(sampleUrl);
-    resetToIdle();
-    if (inputRef.current) inputRef.current.focus();
-  };
 
   const handleFetch = async () => {
     if (currentPhase === 'ready') {
@@ -114,6 +113,7 @@ export default function GryphHomePage() {
     setPreyState('idle');
     setProgressPercent(0);
     setLoadingInfo(true);
+    setImgError(false);
 
     // Preparar opciones de formato de forma inmediata para cualquier plataforma
     const immediateInfo: VideoInfo = {
@@ -432,7 +432,7 @@ export default function GryphHomePage() {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Pega aquí el enlace (Facebook, Pinterest, TikTok, YouTube...)"
+              placeholder="Pega cualquier enlace (Facebook, YouTube, TikTok, Instagram, Pinterest...)"
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value);
@@ -443,6 +443,20 @@ export default function GryphHomePage() {
               }}
               className="w-full py-2 text-xs sm:text-sm text-slate-900 placeholder-slate-500 bg-transparent focus:outline-none font-medium truncate"
             />
+
+            {url && detectedCurrentPlatform !== 'Web' && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-900 text-white shadow-xs shrink-0 mr-1 animate-fadeIn select-none">
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  detectedCurrentPlatform === 'Facebook' ? 'bg-blue-400' :
+                  detectedCurrentPlatform === 'YouTube' ? 'bg-red-400' :
+                  detectedCurrentPlatform === 'TikTok' ? 'bg-emerald-400' :
+                  detectedCurrentPlatform === 'Instagram' ? 'bg-pink-400' :
+                  detectedCurrentPlatform === 'Pinterest' ? 'bg-rose-400' :
+                  'bg-amber-400'
+                } animate-pulse`} />
+                <span>{detectedCurrentPlatform}</span>
+              </span>
+            )}
 
             {url ? (
               <button
@@ -494,38 +508,30 @@ export default function GryphHomePage() {
           </button>
         </div>
 
-        {/* Accesos rápidos de prueba */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-4 px-2">
-          <button 
-            onClick={() => handleSample('https://pin.it/2qs4gIH2I')}
-            className="px-3 py-1 rounded-full text-xs font-medium text-slate-800 bg-white/50 hover:bg-white border border-white/60 shadow-xs transition-all"
-          >
-            Pinterest
-          </button>
-          <button 
-            onClick={() => handleSample('https://www.facebook.com/watch/?v=10153231379946729')}
-            className="px-3 py-1 rounded-full text-xs font-medium text-slate-800 bg-white/50 hover:bg-white border border-white/60 shadow-xs transition-all"
-          >
-            Facebook
-          </button>
-          <button 
-            onClick={() => handleSample('https://www.tiktok.com/@scout2015/video/6718335390845095173')}
-            className="px-3 py-1 rounded-full text-xs font-medium text-slate-800 bg-white/50 hover:bg-white border border-white/60 shadow-xs transition-all"
-          >
-            TikTok
-          </button>
-          <button 
-            onClick={() => handleSample('https://www.instagram.com/reel/C34567890/')}
-            className="px-3 py-1 rounded-full text-xs font-medium text-slate-800 bg-white/50 hover:bg-white border border-white/60 shadow-xs transition-all"
-          >
-            Instagram
-          </button>
-          <button 
-            onClick={() => handleSample('https://www.youtube.com/watch?v=aqz-KE-bpKQ')}
-            className="px-3 py-1 rounded-full text-xs font-medium text-slate-800 bg-white/50 hover:bg-white border border-white/60 shadow-xs transition-all"
-          >
-            YouTube 4K
-          </button>
+        {/* Plataformas compatibles con detección automática universal */}
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-4 px-2 text-xs text-slate-700">
+          <span className="text-slate-500 font-semibold mr-1 flex items-center gap-1 text-[11px] sm:text-xs">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            Detector automático universal:
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-slate-200/80 shadow-2xs text-[11px] font-semibold text-slate-800">
+            <span className="w-2 h-2 rounded-full bg-[#1877F2]"></span> Facebook
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-slate-200/80 shadow-2xs text-[11px] font-semibold text-slate-800">
+            <span className="w-2 h-2 rounded-full bg-[#FF0000]"></span> YouTube
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-slate-200/80 shadow-2xs text-[11px] font-semibold text-slate-800">
+            <span className="w-2 h-2 rounded-full bg-[#E1306C]"></span> Instagram
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-slate-200/80 shadow-2xs text-[11px] font-semibold text-slate-800">
+            <span className="w-2 h-2 rounded-full bg-black"></span> TikTok
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/70 border border-slate-200/80 shadow-2xs text-[11px] font-semibold text-slate-800">
+            <span className="w-2 h-2 rounded-full bg-[#E60023]"></span> Pinterest
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-900 text-[11px] font-black">
+            +1,000 sitios
+          </span>
         </div>
 
         {/* 5. Tarjeta de Previsualización y Formatos (Optimización Móvil en 1 Columna) */}
@@ -533,25 +539,55 @@ export default function GryphHomePage() {
           <div className="w-full max-w-2xl mt-6 p-4 sm:p-6 bg-white/85 backdrop-blur-2xl border border-white/80 rounded-3xl sm:rounded-4xl text-left shadow-[0_20px_50px_rgba(60,82,96,0.15)] animate-fadeIn">
             {/* Adaptación flex-col en móviles a flex-row en escritorio */}
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start sm:items-center">
-              <div className="relative w-full sm:w-44 h-44 sm:h-28 bg-slate-900 rounded-2xl overflow-hidden shrink-0 shadow-sm">
-                {videoInfo.thumbnail ? (
+              <div className="relative w-full sm:w-44 h-44 sm:h-28 bg-slate-900 rounded-2xl overflow-hidden shrink-0 shadow-sm group">
+                {videoInfo.thumbnail && !imgError ? (
                   <img 
                     src={videoInfo.thumbnail} 
                     alt={videoInfo.title} 
-                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
+                    loading="eager"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                    onError={() => setImgError(true)}
+                  />
+                ) : videoInfo.previewUrl ? (
+                  <video 
+                    src={videoInfo.previewUrl} 
+                    preload="metadata" 
+                    playsInline 
+                    muted 
+                    className="w-full h-full object-cover pointer-events-none" 
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-500">
-                    <PlayCircle className="w-8 h-8" />
+                  <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-white text-center relative ${
+                    videoInfo.platform === 'Facebook' ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900' :
+                    videoInfo.platform === 'YouTube' ? 'bg-gradient-to-br from-red-600 to-rose-900' :
+                    videoInfo.platform === 'TikTok' ? 'bg-gradient-to-br from-slate-900 via-purple-950 to-pink-900' :
+                    videoInfo.platform === 'Instagram' ? 'bg-gradient-to-tr from-amber-500 via-rose-600 to-purple-800' :
+                    videoInfo.platform === 'Pinterest' ? 'bg-gradient-to-br from-red-600 to-rose-900' :
+                    'bg-gradient-to-br from-slate-800 to-slate-950'
+                  }`}>
+                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-1 shadow-md">
+                      <PlayCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-[11px] font-bold tracking-wide uppercase opacity-90">{videoInfo.platform} Video</span>
+                    <span className="text-[9px] text-white/70 line-clamp-1 max-w-[90%] mt-0.5">{videoInfo.title}</span>
                   </div>
                 )}
                 {videoInfo.duration > 0 && (
-                  <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 z-10 backdrop-blur-xs">
                     <Clock className="w-2.5 h-2.5 text-amber-400" />
                     {videoInfo.durationFormatted}
                   </span>
                 )}
-                <span className="absolute top-2 left-2 bg-slate-900 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                <span className={`absolute top-2 left-2 text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider z-10 shadow-xs ${
+                  videoInfo.platform === 'Facebook' ? 'bg-blue-600' :
+                  videoInfo.platform === 'YouTube' ? 'bg-red-600' :
+                  videoInfo.platform === 'Instagram' ? 'bg-pink-600' :
+                  videoInfo.platform === 'TikTok' ? 'bg-black' :
+                  videoInfo.platform === 'Pinterest' ? 'bg-rose-600' :
+                  'bg-slate-900'
+                }`}>
                   {videoInfo.platform}
                 </span>
               </div>

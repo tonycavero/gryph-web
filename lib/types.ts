@@ -14,6 +14,7 @@ export interface VideoInfo {
   title: string;
   url: string;
   thumbnail: string;
+  previewUrl?: string;
   duration: number;
   durationFormatted: string;
   uploader?: string;
