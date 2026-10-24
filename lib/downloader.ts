@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import { FormatOption, VideoInfo, detectPlatform } from './types';
+import { cleanAndResolveUrl } from './urlHelper';
 
 export * from './types';
 
@@ -69,7 +70,8 @@ function buildFallbackInfo(targetUrl: string, platform: string, customTitle?: st
   };
 }
 
-export async function fetchVideoInfo(targetUrl: string): Promise<VideoInfo> {
+export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
+  const targetUrl = await cleanAndResolveUrl(rawTargetUrl);
   const platform = detectPlatform(targetUrl);
 
   return new Promise((resolve) => {

@@ -4,19 +4,11 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { detectPlatform } from '@/lib/types';
+import { cleanAndResolveUrl } from '@/lib/urlHelper';
 
 export const dynamic = 'force-dynamic';
 
 const BIN_PATH = path.join(process.cwd(), 'bin', 'yt-dlp.exe');
-
-function cleanUrlForPlatform(rawUrl: string): string {
-  let cleaned = rawUrl.trim();
-  // Normalize mobile Facebook links
-  if (cleaned.includes('m.facebook.com')) {
-    cleaned = cleaned.replace('m.facebook.com', 'www.facebook.com');
-  }
-  return cleaned;
-}
 
 export async function GET(req: NextRequest) {
   let tempFilePath: string | null = null;
@@ -41,7 +33,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const url = cleanUrlForPlatform(rawUrl);
+    const url = await cleanAndResolveUrl(rawUrl);
     const platform = detectPlatform(url);
     const isAudio = format === 'bestaudio';
 
@@ -54,11 +46,17 @@ export async function GET(req: NextRequest) {
       '--no-check-certificate',
       '--geo-bypass',
       '--user-agent',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       '--extractor-args',
       'youtube:player_client=android,web',
       '-o', tempTemplate,
     ];
+
+    // Detect ffmpeg if present
+    const possibleFfmpeg = path.join(os.homedir(), '.local', 'bin', 'ffmpeg.exe');
+    if (fs.existsSync(possibleFfmpeg)) {
+      args.push('--ffmpeg-location', possibleFfmpeg);
+    }
 
     if (platform === 'Facebook') {
       args.push('--referer', 'https://www.facebook.com/');
@@ -66,14 +64,16 @@ export async function GET(req: NextRequest) {
       args.push('--referer', 'https://www.tiktok.com/');
     } else if (platform === 'Instagram') {
       args.push('--referer', 'https://www.instagram.com/');
+    } else if (platform === 'Pinterest') {
+      args.push('--referer', 'https://www.pinterest.com/');
     }
 
     if (isAudio) {
       args.push('-x', '--audio-format', 'mp3');
     } else if (format === '1080p') {
-      args.push('-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best', '--merge-output-format', 'mp4');
+      args.push('-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo+bestaudio/best', '--merge-output-format', 'mp4');
     } else {
-      args.push('-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best', '--merge-output-format', 'mp4');
+      args.push('-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best', '--merge-output-format', 'mp4');
     }
 
     args.push(url);

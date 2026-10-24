@@ -183,10 +183,24 @@ export default function GryphHomePage() {
     setDownloadingId(format.formatId);
     showToast(`Iniciando descarga de ${format.quality}...`);
 
-    try {
-      const downloadTitle = encodeURIComponent(`${videoInfo.platform} ${format.type === 'audio' ? 'Audio' : 'Video'}`);
-      const downloadUrl = `/api/download?url=${encodeURIComponent(videoInfo.url)}&format=${format.formatId}&title=${downloadTitle}`;
+    const downloadTitle = encodeURIComponent(`${videoInfo.platform} ${format.type === 'audio' ? 'Audio' : 'Video'}`);
+    const downloadUrl = `/api/download?url=${encodeURIComponent(videoInfo.url)}&format=${format.formatId}&title=${downloadTitle}`;
 
+    // Detectar si el usuario está en un dispositivo móvil (iOS, Android, etc.)
+    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      showToast(`✓ Descargando archivo directamente en tu teléfono...`);
+      // En móviles, la navegación directa activa el gestor nativo de descargas de Safari/Chrome
+      // evitando bloqueos de popups o límites de memoria de JavaScript (Blobs)
+      window.location.href = downloadUrl;
+      setTimeout(() => {
+        setDownloadingId(null);
+      }, 4000);
+      return;
+    }
+
+    try {
       const res = await fetch(downloadUrl);
       if (!res.ok) {
         let errMsg = 'No se pudo procesar la descarga de este enlace.';
@@ -214,7 +228,8 @@ export default function GryphHomePage() {
 
       showToast(`✓ ¡Descarga lista! Guardando archivo.`);
     } catch (err: any) {
-      showToast(`⚠️ Error: ${err.message || 'Verifica que el video sea público'}`);
+      // Si el fetch como blob falla en algún navegador, usamos la descarga nativa directa
+      window.location.href = downloadUrl;
     } finally {
       setDownloadingId(null);
     }
