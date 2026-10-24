@@ -233,64 +233,57 @@ export default function GryphHomePage() {
     const startX = 10;
     const stageWidth = stageRef.current ? stageRef.current.clientWidth : 550;
     const targetX = stageWidth - 75;
-    const stalkX = startX + (targetX - startX) * 0.82;
-    const minApproachDuration = 2000; // Recorrido visual fluido hacia la presa (82%)
-    const sprintDuration = 350; // Salto veloz final al alcanzar el 100%
     const startTime = performance.now();
-    let sprintStartTime: number | null = null;
-    let sprintStartX = stalkX;
-    let sprintStartPercent = 82;
+    let lastTime = startTime;
+    let currentPercent = 0;
 
     const animateHunt = (currentTime: number) => {
       if (huntFinished) return;
 
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
+      lastTime = currentTime;
       const elapsed = currentTime - startTime;
-      const rawProgress = elapsed / minApproachDuration;
 
-      // Fase 1: Aproximación hacia la presa (hasta 82%)
-      if (!isDataReady || rawProgress < 0.82) {
-        const approachProgress = Math.min(rawProgress, 0.82);
-        
-        if (!isDataReady && rawProgress >= 0.82) {
-          // Si los datos aún no están listos, la mascota acecha cerca de la presa
-          const stalkOscillation = Math.sin(elapsed / 180) * 3;
-          setMascotLeft(stalkX + stalkOscillation);
-          setProgressPercent(82);
-        } else {
-          const currentX = startX + (stalkX - startX) * (approachProgress / 0.82);
-          setMascotLeft(currentX);
-          setProgressPercent(Math.floor(approachProgress * 100));
+      // Avance progresivo 100% acoplado al porcentaje de carga
+      if (!isDataReady || elapsed < 1200) {
+        // Fase de carga: progresión continua y natural hacia la presa
+        if (currentPercent < 35) {
+          currentPercent += delta * 45; // 0 a 35% en ~0.8s
+        } else if (currentPercent < 65) {
+          currentPercent += delta * 25; // 35 a 65% en ~1.2s
+        } else if (currentPercent < 85) {
+          currentPercent += delta * 12; // 65 a 85% en ~1.6s
+        } else if (currentPercent < 94) {
+          currentPercent += delta * 2.0; // 85 a 94% mientras termina el backend
         }
-
-        requestAnimationFrame(animateHunt);
-        return;
-      }
-
-      // Fase 2: ¡Datos listos! Sprint final de 82% a 100%
-      if (sprintStartTime === null) {
-        sprintStartTime = currentTime;
-        sprintStartX = mascotLeft;
-        sprintStartPercent = progressPercent;
-      }
-
-      const sprintElapsed = currentTime - sprintStartTime;
-      const sprintProgress = Math.min(sprintElapsed / sprintDuration, 1);
-
-      const currentPercent = Math.min(sprintStartPercent + Math.floor((100 - sprintStartPercent) * sprintProgress), 100);
-      setProgressPercent(currentPercent);
-
-      const newX = sprintStartX + (targetX - sprintStartX) * sprintProgress;
-      setMascotLeft(newX);
-
-      if (sprintProgress < 1) {
-        requestAnimationFrame(animateHunt);
       } else {
+        // Datos listos: aceleración suave y continua desde el porcentaje actual hasta el 100%
+        const remaining = 100 - currentPercent;
+        const finishRate = Math.max(remaining / 0.35, 60);
+        currentPercent += delta * finishRate;
+      }
+
+      if (currentPercent >= 100) {
+        currentPercent = 100;
         huntFinished = true;
         setProgressPercent(100);
+        setMascotLeft(targetX);
         setLoadingInfo(false);
         setCurrentPhase('ready');
         setPreyState('eaten');
+        return;
       }
+
+      // Porcentaje visible sincronizado
+      const displayPercent = Math.min(Math.floor(currentPercent), 99);
+      setProgressPercent(displayPercent);
+
+      // Posición física de la mascota estrictamente proporcional al porcentaje (sin retrocesos)
+      const progressRatio = currentPercent / 100;
+      const currentX = startX + (targetX - startX) * progressRatio;
+      setMascotLeft(currentX);
+
+      requestAnimationFrame(animateHunt);
     };
 
     requestAnimationFrame(animateHunt);
