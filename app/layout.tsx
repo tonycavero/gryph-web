@@ -26,6 +26,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={plusJakartaSans.className}>
+      <head>
+        {/* Adsterra Social Bar (Global Flotante) */}
+        <script
+          type="text/javascript"
+          data-cfasync="false"
+          src="https://bellnewyork.org/14/6ec0a437098881e6170791ba9755c920"
+          async
+        />
+        {/* Adsterra Popunder (Global On-click) */}
+        <script
+          type="text/javascript"
+          data-cfasync="false"
+          src="https://accountut.com/1/77c3691b106083e99b2f15bbc4d346bd"
+          async
+        />
+      </head>
       <body className="antialiased selection:bg-neutral-900 selection:text-white">
         {children}
       </body>
