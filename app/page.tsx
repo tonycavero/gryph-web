@@ -29,6 +29,8 @@ import PremiumModal from '@/components/PremiumModal';
 import DinoMascot from '@/components/DinoMascot';
 import { VideoInfo, FormatOption, detectPlatform, buildPlatformFormats } from '@/lib/types';
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://gryph-web.onrender.com').replace(/\/+$/, '');
+
 export default function GryphHomePage() {
   const [url, setUrl] = useState('');
   const [currentPhase, setCurrentPhase] = useState<'idle' | 'hunting' | 'ready'>('idle');
@@ -128,7 +130,7 @@ export default function GryphHomePage() {
     };
     setVideoInfo(immediateInfo);
 
-    fetch('/api/info', {
+    fetch(`${API_BASE_URL}/api/info`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: cleanUrl }),
@@ -184,7 +186,7 @@ export default function GryphHomePage() {
     showToast(`Iniciando descarga de ${format.quality}...`);
 
     const downloadTitle = encodeURIComponent(`${videoInfo.platform} ${format.type === 'audio' ? 'Audio' : 'Video'}`);
-    const downloadUrl = `/api/download?url=${encodeURIComponent(videoInfo.url)}&format=${format.formatId}&title=${downloadTitle}`;
+    const downloadUrl = `${API_BASE_URL}/api/download?url=${encodeURIComponent(videoInfo.url)}&format=${format.formatId}&title=${downloadTitle}`;
 
     // Detectar si el usuario está en un dispositivo móvil (iOS, Android, etc.)
     const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent);

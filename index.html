@@ -487,7 +487,8 @@
         // Trigger download if url is present
         const val = input.value.trim();
         if (val) {
-          window.location.href = `/api/download?url=${encodeURIComponent(val)}&format=720p&title=video_gryph`;
+          const apiBase = 'https://gryph-web.onrender.com';
+          window.location.href = `${apiBase}/api/download?url=${encodeURIComponent(val)}&format=720p&title=video_gryph`;
         }
         resetToIdle();
         return;

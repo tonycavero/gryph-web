@@ -6,10 +6,17 @@ import fs from 'fs';
 import { detectPlatform } from '@/lib/types';
 import { cleanAndResolveUrl } from '@/lib/urlHelper';
 import { getYtDlpBinary } from '@/lib/platformBin';
+import { getCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
 
+export async function OPTIONS(req: NextRequest) {
+  return handleCorsPreflight(req.headers.get('origin'));
+}
+
 export async function GET(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   let tempFilePath: string | null = null;
 
   try {
@@ -19,7 +26,7 @@ export async function GET(req: NextRequest) {
     const title = searchParams.get('title') || 'video';
 
     if (!rawUrl) {
-      return NextResponse.json({ error: 'Falta el parámetro URL' }, { status: 400 });
+      return NextResponse.json({ error: 'Falta el parámetro URL' }, { status: 400, headers: corsHeaders });
     }
 
     if (format === '4k') {
@@ -28,7 +35,7 @@ export async function GET(req: NextRequest) {
           error: 'Descargas en 4K requieren Plan Premium.', 
           isPremiumRequired: true 
         }, 
-        { status: 403 }
+        { status: 403, headers: corsHeaders }
       );
     }
 
@@ -118,7 +125,7 @@ export async function GET(req: NextRequest) {
     const matched = tmpDirFiles.find((f) => f.startsWith(id));
 
     if (!matched) {
-      return NextResponse.json({ error: 'No se pudo procesar el archivo de video.' }, { status: 500 });
+      return NextResponse.json({ error: 'No se pudo procesar el archivo de video.' }, { status: 500, headers: corsHeaders });
     }
 
     tempFilePath = path.join(os.tmpdir(), matched);
@@ -174,6 +181,7 @@ export async function GET(req: NextRequest) {
         'Content-Disposition': `attachment; filename="${encodeURIComponent(finalFilename)}"; filename*=UTF-8''${encodeURIComponent(finalFilename)}`,
         'Content-Type': ext === 'mp3' ? 'audio/mpeg' : 'video/mp4',
         'Content-Length': fileStat.size.toString(),
+        ...corsHeaders,
       },
     });
 
@@ -184,6 +192,6 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
     console.error('Download error:', error);
-    return NextResponse.json({ error: error.message || 'Error al procesar la descarga' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error al procesar la descarga' }, { status: 500, headers: corsHeaders });
   }
 }
