@@ -319,14 +319,12 @@ export default function GryphHomePage() {
         </div>
       </header>
 
-      {/* Espacios Publicitarios Laterales Verticales (Skyscrapers 160x600 - ocultos en pantallas menores a 2XL para no comprimir el centro) */}
+      {/* Espacios Publicitarios Laterales Verticales (Skyscrapers 160x600) */}
       <AdBanner type="skyscraper-left" slotId="SLOT_LATERAL_IZQ_160x600" />
       <AdBanner type="skyscraper-right" slotId="SLOT_LATERAL_DER_160x600" />
 
-      {/* Banner Publicitario Superior Horizontal (728x90) con margen superior reducido para subir el contenido */}
-      <div className="max-w-5xl mx-auto px-4 w-full mt-1 mb-2">
-        <AdBanner type="leaderboard" slotId="SLOT_SUPERIOR_728x90" />
-      </div>
+      {/* Banner Publicitario Superior Horizontal (728x90) limpio y sin marcos */}
+      <AdBanner type="leaderboard" slotId="SLOT_SUPERIOR_728x90" />
 
       {/* 2. Hero Section: Titular en Español con Contraste Puro */}
       <main id="hunter" className="flex-1 max-w-4xl mx-auto px-3 sm:px-5 pt-2 sm:pt-4 pb-12 flex flex-col items-center justify-center text-center relative z-10 w-full scroll-mt-20">
@@ -745,10 +743,8 @@ export default function GryphHomePage() {
         </div>
       </section>
 
-      {/* Banner Publicitario Inferior Horizontal */}
-      <div className="max-w-5xl mx-auto px-4 w-full my-4">
-        <AdBanner type="leaderboard" slotId="SLOT_INFERIOR_728x90" />
-      </div>
+      {/* Banner Publicitario Inferior Horizontal limpio y sin marcos */}
+      <AdBanner type="leaderboard" slotId="SLOT_INFERIOR_728x90" />
 
       {/* 7. Preguntas Frecuentes (FAQ Accordion) */}
       <section id="faq" className="max-w-3xl mx-auto px-4 sm:px-5 py-10 w-full scroll-mt-20">
