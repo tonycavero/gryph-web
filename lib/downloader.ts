@@ -83,6 +83,10 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
       return resolve(buildFallbackInfo(targetUrl, platform));
     }
 
+    const userAgent = platform === 'Facebook'
+      ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+      : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
     const args = [
       '--dump-json',
       '--no-playlist',
@@ -91,11 +95,22 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
       '--no-check-certificate',
       '--geo-bypass',
       '--user-agent',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+      userAgent,
       '--extractor-args',
       'youtube:player_client=android,web',
-      targetUrl,
     ];
+
+    if (platform === 'Facebook') {
+      args.push('--referer', 'https://www.facebook.com/');
+    } else if (platform === 'TikTok') {
+      args.push('--referer', 'https://www.tiktok.com/');
+    } else if (platform === 'Instagram') {
+      args.push('--referer', 'https://www.instagram.com/');
+    } else if (platform === 'Pinterest') {
+      args.push('--referer', 'https://www.pinterest.com/');
+    }
+
+    args.push(targetUrl);
 
     const binPath = getYtDlpBinary();
     const child = spawn(binPath, args);

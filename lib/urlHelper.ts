@@ -34,6 +34,34 @@ export async function followRedirects(url: string, maxHops = 5): Promise<string>
   return current;
 }
 
+export async function resolveFacebookShareUrl(shareUrl: string): Promise<string> {
+  try {
+    const res = await fetch(shareUrl, {
+      headers: {
+        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      redirect: 'follow',
+    });
+
+    if (res.url && !res.url.includes('/share/') && !res.url.includes('/login')) {
+      return res.url;
+    }
+
+    const html = await res.text();
+    const ogMatch = html.match(/property="og:url"\s+content="([^"]+)"/i) || html.match(/rel="canonical"\s+href="([^"]+)"/i);
+    if (ogMatch && ogMatch[1] && !ogMatch[1].includes('/login') && !ogMatch[1].includes('/share/')) {
+      return ogMatch[1];
+    }
+
+    const idMatch = html.match(/"video_id":"(\d+)"/) || html.match(/"entity_id":"(\d+)"/) || html.match(/\/videos\/(\d+)\//);
+    if (idMatch && idMatch[1]) {
+      return `https://www.facebook.com/watch/?v=${idMatch[1]}`;
+    }
+  } catch {}
+  return shareUrl;
+}
+
 export async function cleanAndResolveUrl(rawUrl: string): Promise<string> {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   let url = rawUrl.trim();
@@ -49,7 +77,7 @@ export async function cleanAndResolveUrl(rawUrl: string): Promise<string> {
     } catch {}
   }
 
-  // 2. Remove mobile subdomains and standard mobile share URLs
+  // 2. Remove mobile subdomains
   if (url.includes('m.facebook.com')) {
     url = url.replace('m.facebook.com', 'www.facebook.com');
   }
@@ -57,15 +85,27 @@ export async function cleanAndResolveUrl(rawUrl: string): Promise<string> {
     url = url.replace('m.youtube.com', 'www.youtube.com');
   }
 
-  // Convert Facebook mobile share links to direct Reel or Watch links
-  // https://www.facebook.com/share/r/ID/ -> https://www.facebook.com/reel/ID/
-  if (url.includes('facebook.com/share/r/')) {
-    url = url.replace('facebook.com/share/r/', 'facebook.com/reel/');
-  } else if (url.includes('facebook.com/share/v/')) {
-    // https://www.facebook.com/share/v/ID/ -> https://www.facebook.com/watch/?v=ID
-    const match = url.match(/facebook\.com\/share\/v\/([^/?]+)/i);
+  // 3. Handle Facebook Share links (share/v/, share/r/, share/p/, share/)
+  if (url.includes('facebook.com/share/')) {
+    const match = url.match(/facebook\.com\/share\/(?:[rvp]\/)?([^/?#&]+)/i);
     if (match && match[1]) {
-      url = `https://www.facebook.com/watch/?v=${match[1]}`;
+      const shareId = match[1];
+      if (/^\d+$/.test(shareId)) {
+        url = `https://www.facebook.com/watch/?v=${shareId}`;
+      } else {
+        try {
+          const resolved = await resolveFacebookShareUrl(url);
+          if (resolved && resolved !== url) {
+            url = resolved;
+          } else {
+            url = url.includes('/share/r/')
+              ? `https://www.facebook.com/reel/${shareId}/`
+              : `https://www.facebook.com/watch/?v=${shareId}`;
+          }
+        } catch {
+          url = `https://www.facebook.com/watch/?v=${shareId}`;
+        }
+      }
     }
   }
 
@@ -77,7 +117,7 @@ export async function cleanAndResolveUrl(rawUrl: string): Promise<string> {
     }
   }
 
-  // 3. Strip tracking query parameters that break yt-dlp parsers (Instagram igsh, Facebook fbclid/mibextid, TikTok _r/_t, etc.)
+  // 4. Strip tracking query parameters that break yt-dlp parsers
   try {
     const parsed = new URL(url);
     const trackingKeys = [

@@ -46,13 +46,17 @@ export async function GET(req: NextRequest) {
     const id = `dl_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const tempTemplate = path.join(os.tmpdir(), `${id}.%(ext)s`);
 
+    const userAgent = platform === 'Facebook'
+      ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+      : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
     const args: string[] = [
       '--no-playlist',
       '--no-warnings',
       '--no-check-certificate',
       '--geo-bypass',
       '--user-agent',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      userAgent,
       '--extractor-args',
       'youtube:player_client=android,web',
       '-o', tempTemplate,
@@ -77,9 +81,9 @@ export async function GET(req: NextRequest) {
     if (isAudio) {
       args.push('-x', '--audio-format', 'mp3');
     } else if (format === '1080p') {
-      args.push('-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo+bestaudio/best', '--merge-output-format', 'mp4');
+      args.push('-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/bestvideo+bestaudio/best/hd/sd/best', '--merge-output-format', 'mp4');
     } else {
-      args.push('-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best', '--merge-output-format', 'mp4');
+      args.push('-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/bestvideo+bestaudio/best/hd/sd/best', '--merge-output-format', 'mp4');
     }
 
     args.push(url);
