@@ -183,11 +183,16 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
             }
           }
 
-          // Direct stream for first-frame preview if thumbnail is missing (e.g. Facebook)
+          // Direct MP4 stream for first-frame or video clip preview (e.g. Facebook or live clip preview)
           let previewUrl: string | undefined = undefined;
           if (Array.isArray(data.formats) && data.formats.length > 0) {
             const videoStream = data.formats.find(
-              (f: any) => f && f.url && f.vcodec !== 'none' && (f.ext === 'mp4' || f.format_note || f.format_id)
+              (f: any) =>
+                f &&
+                f.url &&
+                f.vcodec !== 'none' &&
+                (f.ext === 'mp4' || f.video_ext === 'mp4' || f.format_note === 'hd' || f.format_note === 'sd') &&
+                !f.url.includes('.m3u8')
             );
             if (videoStream?.url) {
               previewUrl = videoStream.url;

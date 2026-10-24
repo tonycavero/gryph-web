@@ -140,6 +140,7 @@ export default function GryphHomePage() {
         setLoadingInfo(false);
         if (data.success && data.data) {
           setVideoInfo(data.data);
+          setImgError(false);
         }
       })
       .catch(() => {
@@ -539,39 +540,71 @@ export default function GryphHomePage() {
           <div className="w-full max-w-2xl mt-6 p-4 sm:p-6 bg-white/85 backdrop-blur-2xl border border-white/80 rounded-3xl sm:rounded-4xl text-left shadow-[0_20px_50px_rgba(60,82,96,0.15)] animate-fadeIn">
             {/* Adaptación flex-col en móviles a flex-row en escritorio */}
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start sm:items-center">
-              <div className="relative w-full sm:w-44 h-44 sm:h-28 bg-slate-900 rounded-2xl overflow-hidden shrink-0 shadow-sm group">
-                {videoInfo.thumbnail && !imgError ? (
-                  <img 
-                    src={videoInfo.thumbnail} 
-                    alt={videoInfo.title} 
-                    referrerPolicy="no-referrer"
-                    crossOrigin="anonymous"
-                    loading="eager"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                    onError={() => setImgError(true)}
-                  />
-                ) : videoInfo.previewUrl ? (
-                  <video 
-                    src={videoInfo.previewUrl} 
-                    preload="metadata" 
-                    playsInline 
-                    muted 
-                    className="w-full h-full object-cover pointer-events-none" 
-                  />
+              <div className="relative w-full sm:w-44 h-44 sm:h-28 bg-slate-900 rounded-2xl overflow-hidden shrink-0 shadow-md group border border-slate-700/30">
+                {/* 1. Estado de carga: mientras busca la información y la captura */}
+                {loadingInfo && !videoInfo?.thumbnail && !videoInfo?.previewUrl ? (
+                  <div className="w-full h-full bg-slate-800 animate-pulse flex flex-col items-center justify-center text-white/70 p-2">
+                    <div className="w-7 h-7 border-2 border-white/20 border-t-amber-400 rounded-full animate-spin mb-1.5" />
+                    <span className="text-[10px] font-bold text-amber-300">Cargando captura...</span>
+                  </div>
+                ) : videoInfo?.thumbnail && !imgError ? (
+                  /* 2. Captura real de la portada con auto-fallback a proxy */
+                  <div className="relative w-full h-full">
+                    <img 
+                      key={videoInfo.thumbnail}
+                      src={videoInfo.thumbnail} 
+                      alt={videoInfo.title} 
+                      referrerPolicy="no-referrer"
+                      loading="eager"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.src.includes('/api/thumb')) {
+                          target.src = `${API_BASE_URL}/api/thumb?url=${encodeURIComponent(videoInfo.thumbnail)}`;
+                        } else {
+                          setImgError(true);
+                        }
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+                      <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center shadow-lg border border-white/20">
+                        <PlayCircle className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                  </div>
+                ) : videoInfo?.previewUrl ? (
+                  /* 3. Clip / Fotograma animado de video directo */
+                  <div className="relative w-full h-full">
+                    <video 
+                      src={videoInfo.previewUrl} 
+                      preload="auto" 
+                      playsInline 
+                      muted 
+                      autoPlay
+                      loop
+                      className="w-full h-full object-cover pointer-events-none" 
+                    />
+                    <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white">
+                        <PlayCircle className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
                 ) : (
+                  /* 4. Tarjeta elegante de respaldo */
                   <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-white text-center relative ${
-                    videoInfo.platform === 'Facebook' ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900' :
-                    videoInfo.platform === 'YouTube' ? 'bg-gradient-to-br from-red-600 to-rose-900' :
-                    videoInfo.platform === 'TikTok' ? 'bg-gradient-to-br from-slate-900 via-purple-950 to-pink-900' :
-                    videoInfo.platform === 'Instagram' ? 'bg-gradient-to-tr from-amber-500 via-rose-600 to-purple-800' :
-                    videoInfo.platform === 'Pinterest' ? 'bg-gradient-to-br from-red-600 to-rose-900' :
+                    videoInfo?.platform === 'Facebook' ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900' :
+                    videoInfo?.platform === 'YouTube' ? 'bg-gradient-to-br from-red-600 to-rose-900' :
+                    videoInfo?.platform === 'TikTok' ? 'bg-gradient-to-br from-slate-900 via-purple-950 to-pink-900' :
+                    videoInfo?.platform === 'Instagram' ? 'bg-gradient-to-tr from-amber-500 via-rose-600 to-purple-800' :
+                    videoInfo?.platform === 'Pinterest' ? 'bg-gradient-to-br from-red-600 to-rose-900' :
                     'bg-gradient-to-br from-slate-800 to-slate-950'
                   }`}>
                     <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-1 shadow-md">
                       <PlayCircle className="w-6 h-6 text-white" />
                     </div>
-                    <span className="text-[11px] font-bold tracking-wide uppercase opacity-90">{videoInfo.platform} Video</span>
-                    <span className="text-[9px] text-white/70 line-clamp-1 max-w-[90%] mt-0.5">{videoInfo.title}</span>
+                    <span className="text-[11px] font-bold tracking-wide uppercase opacity-90">{videoInfo?.platform} Video</span>
+                    <span className="text-[9px] text-white/70 line-clamp-1 max-w-[90%] mt-0.5">{videoInfo?.title}</span>
                   </div>
                 )}
                 {videoInfo.duration > 0 && (
