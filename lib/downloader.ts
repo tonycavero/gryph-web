@@ -2,10 +2,11 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { FormatOption, VideoInfo, detectPlatform } from './types';
 import { cleanAndResolveUrl } from './urlHelper';
+import { getYtDlpBinary } from './platformBin';
 
 export * from './types';
 
-const BIN_PATH = path.join(process.cwd(), 'bin', 'yt-dlp.exe');
+
 
 function formatSeconds(seconds: number): string {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -96,7 +97,8 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
       targetUrl,
     ];
 
-    const child = spawn(BIN_PATH, args);
+    const binPath = getYtDlpBinary();
+    const child = spawn(binPath, args);
     let stdoutData = '';
 
     const timeout = setTimeout(() => {

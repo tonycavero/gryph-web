@@ -636,6 +636,9 @@ export default function GryphHomePage() {
         )}
       </main>
 
+      {/* Banner Publicitario Intermedio (Especialmente visible y optimizado para móviles) */}
+      <AdBanner type="inline" slotId="SLOT_INTERMEDIO_MOVIL" />
+
       {/* 6. Comparativa de Planes */}
       <section id="comparativa" className="max-w-4xl mx-auto px-4 sm:px-5 py-10 w-full scroll-mt-20">
         <div className="text-center mb-8">

@@ -5,10 +5,9 @@ import os from 'os';
 import fs from 'fs';
 import { detectPlatform } from '@/lib/types';
 import { cleanAndResolveUrl } from '@/lib/urlHelper';
+import { getYtDlpBinary } from '@/lib/platformBin';
 
 export const dynamic = 'force-dynamic';
-
-const BIN_PATH = path.join(process.cwd(), 'bin', 'yt-dlp.exe');
 
 export async function GET(req: NextRequest) {
   let tempFilePath: string | null = null;
@@ -79,7 +78,8 @@ export async function GET(req: NextRequest) {
     args.push(url);
 
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(BIN_PATH, args);
+      const binPath = getYtDlpBinary();
+      const child = spawn(binPath, args);
       let stderrMsg = '';
 
       const timeout = setTimeout(() => {

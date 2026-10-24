@@ -38,7 +38,7 @@ export default function AdBanner({ type = 'leaderboard', className = '', slotId 
     }
   }, [type, slotId]);
 
-  // 1. Skyscraper Vertical Lateral Izquierdo (160x600) - Sin marcos ni bordes blancos
+  // 1. Skyscraper Vertical Lateral Izquierdo (160x600) - Solo visible en pantallas ultra anchas (2XL)
   if (type === 'skyscraper-left') {
     return (
       <aside 
@@ -58,7 +58,7 @@ export default function AdBanner({ type = 'leaderboard', className = '', slotId 
     );
   }
 
-  // 2. Skyscraper Vertical Lateral Derecho (160x600) - Sin marcos ni bordes blancos
+  // 2. Skyscraper Vertical Lateral Derecho (160x600) - Solo visible en pantallas ultra anchas (2XL)
   if (type === 'skyscraper-right') {
     return (
       <aside 
@@ -78,19 +78,21 @@ export default function AdBanner({ type = 'leaderboard', className = '', slotId 
     );
   }
 
-  // 3. Banner Horizontal Leaderboard (728x90) - Sin marcos ni bordes transparentes blancos
+  // 3. Banner Horizontal Leaderboard (728x90) - Con auto-escalado responsive para teléfonos móviles
   if (type === 'leaderboard') {
     if (slotId?.toUpperCase().includes('SUPERIOR')) {
       return (
         <aside 
-          aria-label="Espacio Publicitario Superior (728x90)"
-          className={`w-full flex items-center justify-center my-1 ${className}`}
+          aria-label="Espacio Publicitario Superior"
+          className={`w-full flex items-center justify-center my-1.5 px-2 overflow-hidden ${className}`}
         >
-          {/* El anuncio se muestra directamente en tamaño exacto 728x90 sin ningún marco exterior */}
-          <div 
-            ref={bannerRef}
-            className="w-[728px] max-w-full min-h-[90px] flex items-center justify-center"
-          />
+          {/* En móviles escala el banner 728x90 para que entre al 100% sin recortarse ni provocar desborde */}
+          <div className="w-full flex justify-center items-center overflow-hidden">
+            <div 
+              ref={bannerRef}
+              className="origin-top flex items-center justify-center scale-[0.46] xs:scale-[0.52] sm:scale-[0.72] md:scale-100 h-[46px] xs:h-[52px] sm:h-[68px] md:h-[90px] w-[728px] shrink-0"
+            />
+          </div>
         </aside>
       );
     }
@@ -98,28 +100,27 @@ export default function AdBanner({ type = 'leaderboard', className = '', slotId 
     return (
       <div 
         aria-label="Espacio Publicitario Horizontal"
-        className={`w-full max-w-[728px] mx-auto my-3 flex items-center justify-center min-h-[90px] ${className}`}
+        className={`w-full max-w-[728px] mx-auto my-3 px-3 flex items-center justify-center min-h-[60px] sm:min-h-[90px] ${className}`}
       >
-        <div className="w-full h-[90px] flex items-center justify-center gap-3 text-slate-600/60 text-xs">
-          <span className="text-[10px] font-bold uppercase tracking-wider">Anuncio</span>
-          <span>•</span>
-          <span className="font-semibold">728 x 90</span>
-          <span className="text-[10px] font-mono opacity-60">({slotId})</span>
+        <div className="w-full py-2.5 flex items-center justify-center gap-2 text-slate-600/60 text-xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider bg-black/10 px-2 py-0.5 rounded">Anuncio</span>
+          <span className="font-semibold text-[11px]">Banner 728 x 90</span>
+          <span className="text-[10px] font-mono opacity-50">({slotId})</span>
         </div>
         {/* PEGA AQUÍ TU SCRIPT DE BANNER HORIZONTAL (728x90) */}
       </div>
     );
   }
 
-  // 4. Banner entre contenido (Inline 300x250) - Sin marcos ni bordes blancos
+  // 4. Banner intermedio / móvil (Inline 300x250 o 320x50)
   return (
     <div 
       aria-label="Espacio Publicitario de Contenido"
-      className={`w-full max-w-[728px] mx-auto my-2.5 flex items-center justify-center min-h-[90px] ${className}`}
+      className={`w-full max-w-md mx-auto my-3 px-3 flex items-center justify-center ${className}`}
     >
       <div className="w-full py-2 flex items-center justify-center gap-2 text-slate-600/60 text-xs">
-        <span className="text-[9px] font-bold uppercase tracking-wider">Anuncio</span>
-        <span className="text-[11px] font-medium">• Banner de Contenido (300x250 o 728x90)</span>
+        <span className="text-[9px] font-bold uppercase tracking-wider bg-black/10 px-2 py-0.5 rounded">Anuncio</span>
+        <span className="text-[11px] font-medium">Espacio Móvil (300x250 o 320x50)</span>
         <span className="text-[10px] font-mono opacity-50">• {slotId}</span>
       </div>
       {/* PEGA AQUÍ TU SCRIPT DE ANUNCIO DE CONTENIDO */}
