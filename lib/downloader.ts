@@ -20,7 +20,13 @@ function formatSeconds(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function buildFallbackInfo(targetUrl: string, platform: string, customTitle?: string): VideoInfo {
+function buildFallbackInfo(
+  targetUrl: string,
+  platform: string,
+  customTitle?: string,
+  customThumbnail?: string,
+  customUploader?: string
+): VideoInfo {
   const formats: FormatOption[] = [
     {
       formatId: 'bestaudio',
@@ -61,10 +67,10 @@ function buildFallbackInfo(targetUrl: string, platform: string, customTitle?: st
     id: 'media_' + Date.now(),
     title: customTitle || `${platform} Video / Audio`,
     url: targetUrl,
-    thumbnail: '',
+    thumbnail: customThumbnail || '',
     duration: 0,
     durationFormatted: '0:00',
-    uploader: platform,
+    uploader: customUploader || platform,
     platform,
     formats,
     isLongVideo: false,
@@ -75,14 +81,48 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
   const targetUrl = await cleanAndResolveUrl(rawTargetUrl);
   const platform = detectPlatform(targetUrl);
 
-  return new Promise((resolve) => {
-    try {
-      new URL(targetUrl);
-    } catch {
-      // Return safe fallback rather than throwing 500
-      return resolve(buildFallbackInfo(targetUrl, platform));
-    }
+  try {
+    new URL(targetUrl);
+  } catch {
+    // Return safe fallback rather than throwing 500
+    return buildFallbackInfo(targetUrl, platform);
+  }
 
+  // Pre-fetch fast metadata for YouTube and TikTok via oEmbed
+  let oembedTitle = '';
+  let oembedAuthor = '';
+  let oembedThumbnail = '';
+
+  const ytMatch = targetUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  const ytId = ytMatch ? ytMatch[1] : null;
+
+  if (platform === 'YouTube' && ytId) {
+    oembedThumbnail = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`, {
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const oe = await res.json();
+        if (oe.title) oembedTitle = oe.title;
+        if (oe.author_name) oembedAuthor = oe.author_name;
+      }
+    } catch {}
+  } else if (platform === 'TikTok') {
+    try {
+      const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl)}`, {
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const oe = await res.json();
+        if (oe.title) oembedTitle = oe.title;
+        if (oe.author_name) oembedAuthor = oe.author_name;
+        if (oe.thumbnail_url) oembedThumbnail = oe.thumbnail_url;
+      }
+    } catch {}
+  }
+
+  return new Promise((resolve) => {
     const userAgent = platform === 'Facebook'
       ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
       : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -118,8 +158,16 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
 
     const timeout = setTimeout(() => {
       child.kill();
-      resolve(buildFallbackInfo(targetUrl, platform, `${platform} Media`));
-    }, 15000);
+      resolve(
+        buildFallbackInfo(
+          targetUrl,
+          platform,
+          oembedTitle || `${platform} Media`,
+          oembedThumbnail,
+          oembedAuthor || platform
+        )
+      );
+    }, 30000);
 
     child.stdout.on('data', (chunk) => {
       stdoutData += chunk.toString();
@@ -175,8 +223,11 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
           ];
 
           // Extract thumbnail with robust fallbacks
-          let thumbnail = data.thumbnail || '';
-          if (!thumbnail && Array.isArray(data.thumbnails) && data.thumbnails.length > 0) {
+          let thumbnail = oembedThumbnail || data.thumbnail || '';
+          if (platform === 'YouTube' && ytId) {
+            // YouTube maxresdefault often 404s, hqdefault is 100% reliable
+            thumbnail = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+          } else if (!thumbnail && Array.isArray(data.thumbnails) && data.thumbnails.length > 0) {
             const valid = data.thumbnails.filter((t: any) => t && t.url);
             if (valid.length > 0) {
               thumbnail = valid[valid.length - 1].url;
@@ -200,14 +251,14 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
           }
 
           return resolve({
-            id: data.id || 'unknown',
-            title: data.title || `${platform} Video`,
+            id: data.id || ytId || 'unknown',
+            title: data.title || oembedTitle || `${platform} Video`,
             url: targetUrl,
             thumbnail,
             previewUrl,
             duration,
             durationFormatted: formatSeconds(duration),
-            uploader: data.uploader || data.channel || platform,
+            uploader: data.uploader || data.channel || oembedAuthor || platform,
             platform,
             formats,
             isLongVideo,
@@ -215,8 +266,16 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
         } catch {}
       }
 
-      // If parsing stdout failed, return robust fallback formats so user ALWAYS has buttons!
-      resolve(buildFallbackInfo(targetUrl, platform, `${platform} Video`));
+      // If parsing stdout failed, return robust fallback formats with real title/thumb if obtained from oEmbed
+      resolve(
+        buildFallbackInfo(
+          targetUrl,
+          platform,
+          oembedTitle || `${platform} Video`,
+          oembedThumbnail,
+          oembedAuthor || platform
+        )
+      );
     });
   });
 }

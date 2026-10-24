@@ -46,8 +46,12 @@ export default function GryphHomePage() {
   const [isPremiumOpen, setIsPremiumOpen] = useState(false);
   const [premiumReason, setPremiumReason] = useState('');
   const [imgError, setImgError] = useState(false);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
 
   const detectedCurrentPlatform = detectPlatform(url.trim());
+  const ytVideoId = videoInfo?.url
+    ? (videoInfo.url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/) || [])[1]
+    : null;
 
   // FAQ accordion state
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -119,13 +123,22 @@ export default function GryphHomePage() {
     setProgressPercent(0);
     setLoadingInfo(true);
     setImgError(false);
+    setIsPlayingPreview(false);
+
+    // Detección inmediata de miniatura para YouTube
+    let initialThumb = '';
+    const ytMatch = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+    const ytId = ytMatch ? ytMatch[1] : null;
+    if (detectedPlatform === 'YouTube' && ytId) {
+      initialThumb = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+    }
 
     // Preparar opciones de formato de forma inmediata para cualquier plataforma
     const immediateInfo: VideoInfo = {
       id: 'media_' + Date.now(),
       title: `${detectedPlatform} Video & Audio`,
       url: cleanUrl,
-      thumbnail: '',
+      thumbnail: initialThumb,
       duration: 0,
       durationFormatted: '0:00',
       uploader: detectedPlatform,
@@ -135,11 +148,32 @@ export default function GryphHomePage() {
     };
     setVideoInfo(immediateInfo);
 
+    // Fast path: oEmbed oficial de YouTube (retorna en ~200ms con título y canal real)
+    if (ytId) {
+      fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`)
+        .then((res) => res.json())
+        .then((oe) => {
+          if (oe && oe.title) {
+            setVideoInfo((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                title: oe.title,
+                uploader: oe.author_name || prev.uploader,
+                thumbnail: prev.thumbnail || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+              };
+            });
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Petición profunda al backend (45s para permitir arranque en frío en Render)
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       abortController.abort();
       setLoadingInfo(false);
-    }, 12000);
+    }, 45000);
 
     fetch(`${API_BASE_URL}/api/info`, {
       method: 'POST',
@@ -152,7 +186,13 @@ export default function GryphHomePage() {
         clearTimeout(timeoutId);
         setLoadingInfo(false);
         if (data.success && data.data) {
-          setVideoInfo(data.data);
+          setVideoInfo((prev) => ({
+            ...data.data,
+            // Preservar título real si el servidor devolvió un genérico
+            title: data.data.title && !data.data.title.includes('Video & Audio') ? data.data.title : (prev?.title || data.data.title),
+            thumbnail: data.data.thumbnail || prev?.thumbnail || initialThumb,
+            uploader: data.data.uploader && data.data.uploader !== detectedPlatform ? data.data.uploader : (prev?.uploader || data.data.uploader),
+          }));
           setImgError(false);
         }
       })
@@ -555,15 +595,30 @@ export default function GryphHomePage() {
             {/* Adaptación flex-col en móviles a flex-row en escritorio */}
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start sm:items-center">
               <div className="relative w-full sm:w-44 h-44 sm:h-28 bg-slate-900 rounded-2xl overflow-hidden shrink-0 shadow-md group border border-slate-700/30">
-                {/* 1. Estado de carga: mientras busca la información y la captura */}
-                {loadingInfo && !videoInfo?.thumbnail && !videoInfo?.previewUrl ? (
+                {/* 1. Reproductor interactivo incrustado para YouTube al hacer clic en Play */}
+                {isPlayingPreview && ytVideoId ? (
+                  <iframe
+                    src={`https://www.youtube-nocookie.com/embed/${ytVideoId}?autoplay=1`}
+                    title={videoInfo.title}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : loadingInfo && !videoInfo?.thumbnail && !videoInfo?.previewUrl ? (
+                  /* 2. Estado de carga inicial mientras obtiene la primera información */
                   <div className="w-full h-full bg-slate-800 animate-pulse flex flex-col items-center justify-center text-white/70 p-2">
                     <div className="w-7 h-7 border-2 border-white/20 border-t-amber-400 rounded-full animate-spin mb-1.5" />
                     <span className="text-[10px] font-bold text-amber-300">Cargando captura...</span>
                   </div>
                 ) : videoInfo?.thumbnail && !imgError ? (
-                  /* 2. Captura real de la portada con auto-fallback a proxy */
-                  <div className="relative w-full h-full">
+                  /* 3. Portada real con reproducción interactiva al hacer clic */
+                  <div
+                    className="relative w-full h-full cursor-pointer"
+                    onClick={() => {
+                      if (ytVideoId) setIsPlayingPreview(true);
+                    }}
+                    title={ytVideoId ? 'Clic para reproducir video' : 'Portada del video'}
+                  >
                     <img 
                       key={videoInfo.thumbnail}
                       src={
@@ -577,21 +632,23 @@ export default function GryphHomePage() {
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                       onError={(e) => {
                         const target = e.currentTarget;
-                        if (!target.src.includes('/api/proxy-image') && !target.src.includes('/api/thumb')) {
+                        if (ytVideoId && !target.src.includes('hqdefault.jpg')) {
+                          target.src = `https://i.ytimg.com/vi/${ytVideoId}/hqdefault.jpg`;
+                        } else if (!target.src.includes('/api/proxy-image') && !target.src.includes('/api/thumb')) {
                           target.src = `${API_BASE_URL}/api/proxy-image?url=${encodeURIComponent(videoInfo.thumbnail)}`;
                         } else {
                           setImgError(true);
                         }
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
-                      <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center shadow-lg border border-white/20">
-                        <PlayCircle className="w-5 h-5 text-white" />
+                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity">
+                      <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center shadow-lg border border-white/30 group-hover:scale-110 transition-transform">
+                        <PlayCircle className="w-5 h-5 text-amber-400 fill-amber-400/20" />
                       </div>
                     </div>
                   </div>
                 ) : videoInfo?.previewUrl ? (
-                  /* 3. Clip / Fotograma animado de video directo */
+                  /* 4. Clip directo animado */
                   <div className="relative w-full h-full">
                     <video 
                       src={videoInfo.previewUrl} 
@@ -609,7 +666,7 @@ export default function GryphHomePage() {
                     </div>
                   </div>
                 ) : (
-                  /* 4. Tarjeta elegante de respaldo */
+                  /* 5. Tarjeta elegante de respaldo */
                   <div className={`w-full h-full flex flex-col items-center justify-center p-3 text-white text-center relative ${
                     videoInfo?.platform === 'Facebook' ? 'bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900' :
                     videoInfo?.platform === 'YouTube' ? 'bg-gradient-to-br from-red-600 to-rose-900' :
