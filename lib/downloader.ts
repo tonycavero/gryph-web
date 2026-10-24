@@ -25,7 +25,8 @@ function buildFallbackInfo(
   platform: string,
   customTitle?: string,
   customThumbnail?: string,
-  customUploader?: string
+  customUploader?: string,
+  previewUrl?: string
 ): VideoInfo {
   const formats: FormatOption[] = [
     {
@@ -68,6 +69,7 @@ function buildFallbackInfo(
     title: customTitle || `${platform} Video / Audio`,
     url: targetUrl,
     thumbnail: customThumbnail || '',
+    previewUrl: previewUrl || undefined,
     duration: 0,
     durationFormatted: '0:00',
     uploader: customUploader || platform,
@@ -88,10 +90,11 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
     return buildFallbackInfo(targetUrl, platform);
   }
 
-  // Pre-fetch fast metadata for YouTube and TikTok via oEmbed
+  // Pre-fetch fast metadata for YouTube, Pinterest and TikTok via oEmbed
   let oembedTitle = '';
   let oembedAuthor = '';
   let oembedThumbnail = '';
+  let oembedPreviewUrl = '';
 
   const ytMatch = targetUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
   const ytId = ytMatch ? ytMatch[1] : null;
@@ -108,6 +111,54 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
         if (oe.author_name) oembedAuthor = oe.author_name;
       }
     } catch {}
+  } else if (platform === 'Pinterest') {
+    let pinId: string | null = null;
+    const pinMatch = targetUrl.match(/pin\/(\d+)/i) || rawTargetUrl.match(/pin\/(\d+)/i);
+    if (pinMatch) {
+      pinId = pinMatch[1];
+    } else if (rawTargetUrl.includes('pin.it') || targetUrl.includes('pin.it')) {
+      try {
+        const pinRes = await fetch(rawTargetUrl.includes('pin.it') ? rawTargetUrl : targetUrl, {
+          redirect: 'follow',
+          signal: AbortSignal.timeout(3500),
+        });
+        const m = pinRes.url.match(/pin\/(\d+)/i);
+        if (m) pinId = m[1];
+      } catch {}
+    }
+
+    if (pinId) {
+      try {
+        const oeRes = await fetch(`https://www.pinterest.com/oembed.json?url=https://www.pinterest.com/pin/${pinId}/`, {
+          signal: AbortSignal.timeout(3500),
+        });
+        if (oeRes.ok) {
+          const oe = await oeRes.json();
+          if (oe.title) oembedTitle = oe.title;
+          if (oe.author_name) oembedAuthor = oe.author_name;
+          if (oe.thumbnail_url) {
+            oembedThumbnail = oe.thumbnail_url.replace('/236x/', '/736x/');
+          }
+        }
+      } catch {}
+
+      // Fast-extract direct MP4 video stream from Pinterest page if available
+      try {
+        const pinPageRes = await fetch(`https://www.pinterest.com/pin/${pinId}/`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          },
+          signal: AbortSignal.timeout(3000),
+        });
+        if (pinPageRes.ok) {
+          const html = await pinPageRes.text();
+          const mp4Matches = html.match(/https:\/\/[^"'\s]+?\.mp4/g);
+          if (mp4Matches && mp4Matches.length > 0) {
+            oembedPreviewUrl = mp4Matches[0];
+          }
+        }
+      } catch {}
+    }
   } else if (platform === 'TikTok') {
     try {
       const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl)}`, {
@@ -153,21 +204,51 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
     args.push(targetUrl);
 
     const binPath = getYtDlpBinary();
-    const child = spawn(binPath, args);
+    let child: any;
+    try {
+      child = spawn(binPath, args);
+    } catch {
+      return resolve(
+        buildFallbackInfo(
+          targetUrl,
+          platform,
+          oembedTitle || `${platform} Video`,
+          oembedThumbnail,
+          oembedAuthor || platform,
+          oembedPreviewUrl
+        )
+      );
+    }
+
     let stdoutData = '';
 
     const timeout = setTimeout(() => {
-      child.kill();
+      try { child.kill(); } catch {}
       resolve(
         buildFallbackInfo(
           targetUrl,
           platform,
           oembedTitle || `${platform} Media`,
           oembedThumbnail,
-          oembedAuthor || platform
+          oembedAuthor || platform,
+          oembedPreviewUrl
         )
       );
     }, 30000);
+
+    child.on('error', () => {
+      clearTimeout(timeout);
+      resolve(
+        buildFallbackInfo(
+          targetUrl,
+          platform,
+          oembedTitle || `${platform} Video`,
+          oembedThumbnail,
+          oembedAuthor || platform,
+          oembedPreviewUrl
+        )
+      );
+    });
 
     child.stdout.on('data', (chunk) => {
       stdoutData += chunk.toString();
@@ -250,15 +331,23 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
             }
           }
 
+          const resolvedPreview = previewUrl || oembedPreviewUrl;
+          const resolvedTitle = (oembedTitle && (!data.title || data.title.startsWith('Pinterest video #') || data.title.includes('Video & Audio')))
+            ? oembedTitle
+            : (data.title || oembedTitle || `${platform} Video`);
+          const resolvedUploader = (oembedAuthor && oembedAuthor !== 'Pinterest')
+            ? oembedAuthor
+            : (data.uploader || data.channel || oembedAuthor || platform);
+
           return resolve({
             id: data.id || ytId || 'unknown',
-            title: data.title || oembedTitle || `${platform} Video`,
+            title: resolvedTitle,
             url: targetUrl,
-            thumbnail,
-            previewUrl,
+            thumbnail: oembedThumbnail || thumbnail,
+            previewUrl: resolvedPreview || undefined,
             duration,
             durationFormatted: formatSeconds(duration),
-            uploader: data.uploader || data.channel || oembedAuthor || platform,
+            uploader: resolvedUploader,
             platform,
             formats,
             isLongVideo,
@@ -273,7 +362,8 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
           platform,
           oembedTitle || `${platform} Video`,
           oembedThumbnail,
-          oembedAuthor || platform
+          oembedAuthor || platform,
+          oembedPreviewUrl
         )
       );
     });

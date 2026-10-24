@@ -148,7 +148,11 @@ export default function GryphHomePage() {
     };
     setVideoInfo(immediateInfo);
 
-    // Fast path: oEmbed oficial de YouTube (retorna en ~200ms con título y canal real)
+    // Bandera para sincronizar la animación de la mascota con la llegada de datos reales
+    let isDataReady = false;
+    let huntFinished = false;
+
+    // 1. Fast path: oEmbed oficial de YouTube (retorna en ~200ms con título y canal real)
     if (ytId) {
       fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`)
         .then((res) => res.json())
@@ -163,17 +167,41 @@ export default function GryphHomePage() {
                 thumbnail: prev.thumbnail || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
               };
             });
+            isDataReady = true;
           }
         })
         .catch(() => {});
     }
 
-    // Petición profunda al backend (45s para permitir arranque en frío en Render)
+    // 2. Fast path: Vercel serverless /api/info (responde en ~300ms con metadatos de Pinterest, TikTok, etc.)
+    fetch('/api/info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: cleanUrl }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data) {
+          setVideoInfo((prev) => ({
+            ...prev,
+            ...data.data,
+            title: data.data.title && !data.data.title.includes('Video & Audio') ? data.data.title : (prev?.title || data.data.title),
+            thumbnail: data.data.thumbnail || prev?.thumbnail || initialThumb,
+            previewUrl: data.data.previewUrl || prev?.previewUrl,
+            uploader: data.data.uploader && data.data.uploader !== detectedPlatform ? data.data.uploader : (prev?.uploader || data.data.uploader),
+          }));
+          setImgError(false);
+          isDataReady = true;
+        }
+      })
+      .catch(() => {});
+
+    // 3. Petición profunda al backend en Render (formatos y streams)
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       abortController.abort();
-      setLoadingInfo(false);
-    }, 45000);
+      isDataReady = true; // Forzar finalización por seguridad si toma más de 15s
+    }, 15000);
 
     fetch(`${API_BASE_URL}/api/info`, {
       method: 'POST',
@@ -184,43 +212,82 @@ export default function GryphHomePage() {
       .then((res) => res.json())
       .then((data) => {
         clearTimeout(timeoutId);
-        setLoadingInfo(false);
         if (data.success && data.data) {
           setVideoInfo((prev) => ({
+            ...prev,
             ...data.data,
-            // Preservar título real si el servidor devolvió un genérico
             title: data.data.title && !data.data.title.includes('Video & Audio') ? data.data.title : (prev?.title || data.data.title),
             thumbnail: data.data.thumbnail || prev?.thumbnail || initialThumb,
+            previewUrl: data.data.previewUrl || prev?.previewUrl,
             uploader: data.data.uploader && data.data.uploader !== detectedPlatform ? data.data.uploader : (prev?.uploader || data.data.uploader),
           }));
           setImgError(false);
         }
+        isDataReady = true;
       })
       .catch(() => {
         clearTimeout(timeoutId);
-        setLoadingInfo(false);
+        isDataReady = true;
       });
 
     const startX = 10;
     const stageWidth = stageRef.current ? stageRef.current.clientWidth : 550;
     const targetX = stageWidth - 75;
-    const duration = 3000;
+    const stalkX = startX + (targetX - startX) * 0.82;
+    const minApproachDuration = 2000; // Recorrido visual fluido hacia la presa (82%)
+    const sprintDuration = 350; // Salto veloz final al alcanzar el 100%
     const startTime = performance.now();
+    let sprintStartTime: number | null = null;
+    let sprintStartX = stalkX;
+    let sprintStartPercent = 82;
 
     const animateHunt = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      const percent = Math.floor(progress * 100);
-      setProgressPercent(percent);
+      if (huntFinished) return;
 
-      const newX = startX + (targetX - startX) * progress;
+      const elapsed = currentTime - startTime;
+      const rawProgress = elapsed / minApproachDuration;
+
+      // Fase 1: Aproximación hacia la presa (hasta 82%)
+      if (!isDataReady || rawProgress < 0.82) {
+        const approachProgress = Math.min(rawProgress, 0.82);
+        
+        if (!isDataReady && rawProgress >= 0.82) {
+          // Si los datos aún no están listos, la mascota acecha cerca de la presa
+          const stalkOscillation = Math.sin(elapsed / 180) * 3;
+          setMascotLeft(stalkX + stalkOscillation);
+          setProgressPercent(82);
+        } else {
+          const currentX = startX + (stalkX - startX) * (approachProgress / 0.82);
+          setMascotLeft(currentX);
+          setProgressPercent(Math.floor(approachProgress * 100));
+        }
+
+        requestAnimationFrame(animateHunt);
+        return;
+      }
+
+      // Fase 2: ¡Datos listos! Sprint final de 82% a 100%
+      if (sprintStartTime === null) {
+        sprintStartTime = currentTime;
+        sprintStartX = mascotLeft;
+        sprintStartPercent = progressPercent;
+      }
+
+      const sprintElapsed = currentTime - sprintStartTime;
+      const sprintProgress = Math.min(sprintElapsed / sprintDuration, 1);
+
+      const currentPercent = Math.min(sprintStartPercent + Math.floor((100 - sprintStartPercent) * sprintProgress), 100);
+      setProgressPercent(currentPercent);
+
+      const newX = sprintStartX + (targetX - sprintStartX) * sprintProgress;
       setMascotLeft(newX);
 
-      if (progress < 1) {
+      if (sprintProgress < 1) {
         requestAnimationFrame(animateHunt);
       } else {
+        huntFinished = true;
         setProgressPercent(100);
+        setLoadingInfo(false);
         setCurrentPhase('ready');
         setPreyState('eaten');
       }
