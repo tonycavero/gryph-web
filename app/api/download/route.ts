@@ -7,6 +7,69 @@ import { getCorsHeaders, handleCorsPreflight } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
 
+async function getTikTokNoWatermarkStream(tiktokUrl: string, format: string) {
+  const isAudio = format === 'bestaudio';
+  try {
+    const res = await fetch('https://www.tikwm.com/api/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      body: new URLSearchParams({ url: tiktokUrl, hd: '1' }).toString(),
+      signal: AbortSignal.timeout(6000),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.code === 0 && json.data) {
+        let streamUrl = '';
+        let contentType = 'video/mp4';
+        let ext = 'mp4';
+
+        if (isAudio) {
+          streamUrl = json.data.music || json.data.play;
+          contentType = 'audio/mpeg';
+          ext = 'mp3';
+        } else if (format === '1080p') {
+          // Prefer HD without watermark
+          streamUrl = json.data.hdplay || json.data.play;
+        } else {
+          // Standard definition without watermark
+          streamUrl = json.data.play || json.data.hdplay;
+        }
+
+        if (streamUrl) {
+          if (streamUrl.startsWith('/')) {
+            streamUrl = `https://www.tikwm.com${streamUrl}`;
+          }
+
+          const mediaRes = await fetch(streamUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              'Referer': 'https://www.tiktok.com/',
+            },
+            signal: AbortSignal.timeout(60000),
+          });
+
+          if (mediaRes.ok && mediaRes.body) {
+            return {
+              body: mediaRes.body,
+              contentLength: mediaRes.headers.get('content-length'),
+              contentType,
+              ext,
+              title: json.data.title || '',
+            };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('TikWM direct stream fetch failed, falling back to yt-dlp:', err);
+  }
+  return null;
+}
+
 export async function OPTIONS(req: NextRequest) {
   return handleCorsPreflight(req.headers.get('origin'));
 }
@@ -39,6 +102,37 @@ export async function GET(req: NextRequest) {
     const platform = detectPlatform(url);
     const isAudio = format === 'bestaudio';
 
+    const cleanTitle = title
+      .replace(/[^\w\s-]/gi, '')
+      .trim()
+      .slice(0, 50) || 'media';
+
+    // 1. FAST PATH PARA TIKTOK: Descarga directa 100% libre de marca de agua
+    if (platform === 'TikTok') {
+      try {
+        const tikwmStream = await getTikTokNoWatermarkStream(url, format);
+        if (tikwmStream) {
+          const mediaLabel = isAudio ? 'Audio' : 'Video Sin Marca';
+          const ext = tikwmStream.ext;
+          const finalFilename = `TikTok ${mediaLabel} - ${cleanTitle}.${ext}`;
+
+          const headers: Record<string, string> = {
+            'Content-Disposition': `attachment; filename="${encodeURIComponent(finalFilename)}"; filename*=UTF-8''${encodeURIComponent(finalFilename)}`,
+            'Content-Type': tikwmStream.contentType,
+            ...corsHeaders,
+          };
+
+          if (tikwmStream.contentLength) {
+            headers['Content-Length'] = tikwmStream.contentLength;
+          }
+
+          return new Response(tikwmStream.body, { headers });
+        }
+      } catch (err) {
+        console.warn('TikWM stream failed, proceeding to yt-dlp fallback:', err);
+      }
+    }
+
     const userAgent = platform === 'Facebook'
       ? 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
       : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -65,7 +159,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Format selection for instant stdout streaming without heavy ffmpeg disk merge
-    if (isAudio) {
+    if (platform === 'TikTok') {
+      if (isAudio) {
+        args.push('-f', 'bestaudio/best[ext=mp4]/best');
+      } else {
+        // Excluir explícitamente formatos con marca de agua ('watermarked' y 'download')
+        args.push('-f', 'best[format_note!*=watermarked][format_id!=download][ext=mp4]/best[format_note!*=watermarked][format_id!=download]/best[ext=mp4]/best');
+      }
+    } else if (isAudio) {
       args.push('-f', 'bestaudio[ext=m4a]/bestaudio/best[ext=mp4]/best');
     } else if (format === '1080p') {
       args.push('-f', 'best[height<=1080][ext=mp4]/best[height<=1080]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/hd/best');
@@ -78,13 +179,8 @@ export async function GET(req: NextRequest) {
     const binPath = getYtDlpBinary();
     const child = spawn(binPath, args);
 
-    const cleanTitle = title
-      .replace(/[^\w\s-]/gi, '')
-      .trim()
-      .slice(0, 50) || 'media';
-
-    const mediaTypeLabel = isAudio ? 'Audio' : 'Video';
-    const ext = isAudio ? 'm4a' : 'mp4';
+    const mediaTypeLabel = isAudio ? 'Audio' : (platform === 'TikTok' ? 'Video Sin Marca' : 'Video');
+    const ext = isAudio ? (platform === 'TikTok' ? 'mp3' : 'm4a') : 'mp4';
     const finalFilename = `${platform} ${mediaTypeLabel} - ${cleanTitle}.${ext}`;
 
     const webStream = new ReadableStream({

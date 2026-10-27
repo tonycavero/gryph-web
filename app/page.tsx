@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import AdBanner from '@/components/AdBanner';
 import PremiumModal from '@/components/PremiumModal';
-import DinoMascot from '@/components/DinoMascot';
 import { VideoInfo, FormatOption, detectPlatform, buildPlatformFormats } from '@/lib/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://gryph-web.onrender.com').replace(/\/+$/, '');
@@ -35,8 +34,7 @@ export default function GryphHomePage() {
   const [url, setUrl] = useState('');
   const [currentPhase, setCurrentPhase] = useState<'idle' | 'hunting' | 'ready'>('idle');
   const [progressPercent, setProgressPercent] = useState(0);
-  const [mascotLeft, setMascotLeft] = useState(10);
-  const [preyState, setPreyState] = useState<'idle' | 'eaten'>('idle');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Video download state
@@ -61,7 +59,6 @@ export default function GryphHomePage() {
     fetch(`${API_BASE_URL}/api/health`).catch(() => {});
   }, []);
 
-  const stageRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string) => {
@@ -74,8 +71,7 @@ export default function GryphHomePage() {
   const resetToIdle = () => {
     setCurrentPhase('idle');
     setProgressPercent(0);
-    setMascotLeft(10);
-    setPreyState('idle');
+    setElapsedSeconds(0);
     setImgError(false);
   };
 
@@ -119,8 +115,8 @@ export default function GryphHomePage() {
 
     const detectedPlatform = detectPlatform(cleanUrl);
     setCurrentPhase('hunting');
-    setPreyState('idle');
     setProgressPercent(0);
+    setElapsedSeconds(0);
     setLoadingInfo(true);
     setImgError(false);
     setIsPlayingPreview(false);
@@ -230,9 +226,6 @@ export default function GryphHomePage() {
         isDataReady = true;
       });
 
-    const startX = 10;
-    const stageWidth = stageRef.current ? stageRef.current.clientWidth : 550;
-    const targetX = stageWidth - 75;
     const startTime = performance.now();
     let lastTime = startTime;
     let currentPercent = 0;
@@ -243,10 +236,11 @@ export default function GryphHomePage() {
       const delta = Math.min((currentTime - lastTime) / 1000, 0.1);
       lastTime = currentTime;
       const elapsed = currentTime - startTime;
+      setElapsedSeconds(elapsed / 1000);
 
       // Avance progresivo 100% acoplado al porcentaje de carga
       if (!isDataReady || elapsed < 1200) {
-        // Fase de carga: progresión continua y natural hacia la presa
+        // Fase de carga: progresión continua y natural hacia el 100%
         if (currentPercent < 35) {
           currentPercent += delta * 45; // 0 a 35% en ~0.8s
         } else if (currentPercent < 65) {
@@ -267,21 +261,15 @@ export default function GryphHomePage() {
         currentPercent = 100;
         huntFinished = true;
         setProgressPercent(100);
-        setMascotLeft(targetX);
+        setElapsedSeconds(elapsed / 1000);
         setLoadingInfo(false);
         setCurrentPhase('ready');
-        setPreyState('eaten');
         return;
       }
 
       // Porcentaje visible sincronizado
       const displayPercent = Math.min(Math.floor(currentPercent), 99);
       setProgressPercent(displayPercent);
-
-      // Posición física de la mascota estrictamente proporcional al porcentaje (sin retrocesos)
-      const progressRatio = currentPercent / 100;
-      const currentX = startX + (targetX - startX) * progressRatio;
-      setMascotLeft(currentX);
 
       requestAnimationFrame(animateHunt);
     };
@@ -331,7 +319,15 @@ export default function GryphHomePage() {
       }
 
       const blob = await res.blob();
-      const filename = `${videoInfo.platform} ${format.type === 'audio' ? 'Audio' : 'Video'}.${format.ext}`;
+      const disposition = res.headers.get('content-disposition');
+      let filename = `${videoInfo.platform} ${format.type === 'audio' ? 'Audio' : (videoInfo.platform === 'TikTok' ? 'Video Sin Marca' : 'Video')}.${format.ext}`;
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i);
+        if (match && match[1]) {
+          filename = decodeURIComponent(match[1]);
+        }
+      }
+
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
@@ -354,12 +350,16 @@ export default function GryphHomePage() {
 
   const faqs = [
     {
-      q: '¿Cómo descargo solo el audio de un video?',
-      a: 'Pega tu enlace de Facebook, YouTube, TikTok o Pinterest y presiona Cazar. En la tarjeta de formatos podrás elegir la opción específica de audio (por ejemplo "Facebook Audio" o "YouTube Audio"), la cual se descargará en formato MP3 con la mejor calidad estéreo.',
+      q: '¿Los videos de TikTok se descargan sin marca de agua?',
+      a: '¡Sí, 100%! AnyLoad extrae el stream limpio de TikTok en máxima definición (HD y Full HD) sin la marca de agua flotante ni el logotipo de TikTok.',
     },
     {
-      q: '¿Cómo funciona el cargador del dinosaurio?',
-      a: 'La mascota avanza persiguiendo la presa mientras un indicador en tiempo real muestra el porcentaje de carga del 0% al 100%. Al alcanzar el 100%, el dinosaurio llega a la presa y la descarga queda 100% ensamblada y lista.',
+      q: '¿Cómo descargo solo el audio de un video?',
+      a: 'Pega tu enlace de Facebook, YouTube, TikTok o Pinterest y presiona Cazar. En la tarjeta de formatos podrás elegir la opción específica de audio (por ejemplo "TikTok Audio" o "YouTube Audio"), la cual se descargará en formato MP3 con la mejor calidad estéreo.',
+    },
+    {
+      q: '¿Cómo funciona el temporizador de carga?',
+      a: 'El temporizador en tiempo real analiza y procesa el enlace en cuestión de segundos con una barra de progreso ultra-rápida. Al llegar al 100%, tu video o audio queda listo para descargar sin esperas.',
     },
     {
       q: '¿Por qué la versión básica es gratis?',
@@ -478,115 +478,116 @@ export default function GryphHomePage() {
           </p>
         </div>
 
-        {/* 3. Escenario Mejorado de Caza con Mascota Dinosaurio y Skyline de Ciudad */}
-        <div className="w-full max-w-2xl mb-3 sm:mb-4 px-1 relative select-none animate-fadeIn">
-          <div className="bg-white/80 sm:bg-white/70 backdrop-blur-2xl border border-white/80 rounded-3xl p-3 sm:p-4 shadow-[0_16px_45px_rgba(60,82,96,0.16)] overflow-hidden">
+        {/* 3. Temporizador Minimalista y Colorido (Más compacto que el buscador) */}
+        <div className="w-full max-w-lg mb-3.5 sm:mb-4 px-1 relative select-none animate-fadeIn">
+          <div className="bg-white/85 sm:bg-white/75 backdrop-blur-2xl border border-white/80 rounded-3xl p-3 sm:p-4 shadow-[0_12px_36px_rgba(60,82,96,0.12)] overflow-hidden">
             
-            {/* Cabecera: LED de Estado + Porcentaje en Píldora */}
-            <div className="flex items-center justify-between text-xs font-bold mb-2 px-1">
-              <span className="flex items-center gap-2 text-[11px] sm:text-xs font-black text-slate-800 tracking-wide uppercase">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
-                    currentPhase === 'hunting' ? 'bg-emerald-400 opacity-75' :
-                    currentPhase === 'ready' ? 'bg-emerald-500 opacity-75' :
-                    'bg-amber-400 opacity-50'
-                  }`} />
-                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                    currentPhase === 'hunting' ? 'bg-emerald-500' :
-                    currentPhase === 'ready' ? 'bg-emerald-600' :
-                    'bg-amber-500'
-                  }`} />
-                </span>
-                <span>
-                  {currentPhase === 'hunting' 
-                    ? 'Cazando video en curso...' 
-                    : currentPhase === 'ready' 
-                    ? '¡Presa capturada!' 
-                    : 'Listo para cazar'}
-                </span>
-              </span>
+            {/* Cabecera del Temporizador */}
+            <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+              
+              {/* Lado izquierdo: Icono de cronómetro + tiempo + estado */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`w-8 h-8 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                  currentPhase === 'hunting'
+                    ? 'bg-gradient-to-tr from-violet-600 via-fuchsia-500 to-amber-400 text-white shadow-md shadow-fuchsia-500/30'
+                    : currentPhase === 'ready'
+                    ? 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-md shadow-emerald-500/30'
+                    : 'bg-slate-100 text-slate-500 border border-slate-200/80'
+                }`}>
+                  {currentPhase === 'ready' ? (
+                    <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                  ) : (
+                    <Clock className={`w-4 h-4 ${currentPhase === 'hunting' ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
+                  )}
+                </div>
 
-              {/* Etiqueta 100% READY / Porcentaje estilizado */}
-              <div className={`px-2.5 py-0.5 rounded-full text-[11px] font-black transition-all shadow-xs ${
-                currentPhase === 'ready'
-                  ? 'bg-emerald-500 text-white shadow-emerald-500/40 animate-bounce'
-                  : currentPhase === 'hunting'
-                  ? 'bg-slate-900 text-amber-300 border border-slate-700/40'
-                  : 'bg-slate-900/10 text-slate-700'
-              }`}>
-                {currentPhase === 'ready' ? '100% READY!' : `${progressPercent}%`}
-              </div>
-            </div>
-
-            {/* Pista de Caza con Horizonte Skyline Animado (Imagen 2) */}
-            <div 
-              ref={stageRef}
-              className="relative w-full h-16 sm:h-20 bg-slate-100/60 rounded-2xl overflow-hidden border border-slate-200/70 shadow-inner flex items-end select-none"
-            >
-              {/* Skyline Panorámico en bucle continuo de la ciudad (Imagen 2) */}
-              <div className="absolute inset-0 pointer-events-none select-none overflow-hidden opacity-45">
-                <div className={`flex w-[200%] h-full ${currentPhase === 'hunting' ? 'animate-skyline-scroll' : ''}`}>
-                  <img
-                    src="/city-skyline-seamless.png"
-                    alt="City Skyline"
-                    className="w-1/2 h-full object-cover shrink-0 select-none"
-                    draggable={false}
-                  />
-                  <img
-                    src="/city-skyline-seamless.png"
-                    alt="City Skyline"
-                    className="w-1/2 h-full object-cover shrink-0 select-none"
-                    draggable={false}
-                  />
+                <div className="flex flex-col text-left min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-xs sm:text-sm font-black tracking-tight text-slate-900">
+                      {elapsedSeconds > 0 ? `${elapsedSeconds.toFixed(1)}s` : '0.0s'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-semibold">•</span>
+                    <span className={`text-[11px] sm:text-xs font-bold truncate ${
+                      currentPhase === 'hunting' ? 'text-violet-700' :
+                      currentPhase === 'ready' ? 'text-emerald-700' :
+                      'text-slate-600'
+                    }`}>
+                      {currentPhase === 'hunting'
+                        ? 'Procesando enlace...'
+                        : currentPhase === 'ready'
+                        ? '¡Video listo para descargar!'
+                        : 'Temporizador Listo'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium truncate">
+                    {currentPhase === 'hunting'
+                      ? 'Extrayendo streams en alta velocidad'
+                      : currentPhase === 'ready'
+                      ? 'Metadatos y formatos ensamblados'
+                      : 'Pega un enlace para iniciar'}
+                  </span>
                 </div>
               </div>
 
-              {/* Línea de suelo base */}
-              <div className="absolute bottom-[2px] left-0 right-0 h-[2px] bg-slate-800/60 pointer-events-none" />
-
-              {/* Barra de progreso de carga brillante */}
-              <div 
-                style={{ width: `${progressPercent}%` }}
-                className="absolute bottom-0 left-0 h-[3px] bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400 shadow-[0_0_12px_rgba(251,191,36,0.9)] transition-all duration-75"
-              />
-
-              {/* Dinosaurio Mascota (Desplazamiento fluido y proporcional) */}
-              <div
-                style={{ left: `${mascotLeft}px` }}
-                className="absolute bottom-1 select-none transition-transform duration-75"
-              >
-                <DinoMascot state={currentPhase} />
-
-                {/* Polvo corriendo detrás del dinosaurio */}
-                {currentPhase === 'hunting' && (
-                  <div className="absolute -left-2 bottom-1 flex gap-0.5 pointer-events-none opacity-60">
-                    <span className="w-1.5 h-1.5 rounded-xs bg-slate-500 animate-dust" />
-                    <span className="w-1 h-1 rounded-xs bg-slate-400 animate-dust" style={{ animationDelay: '0.15s' }} />
-                  </div>
-                )}
-              </div>
-
-              {/* Presa (🎬 pasa a 🍖 al 100%) */}
-              <div 
-                className={`absolute right-3 bottom-2 text-2xl sm:text-3xl select-none transition-all duration-300 ${
-                  preyState === 'eaten'
-                    ? 'scale-125 animate-bounce'
-                    : currentPhase === 'hunting'
-                    ? 'animate-pulse drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)]'
-                    : 'drop-shadow-xs'
-                }`}
-              >
-                {preyState === 'eaten' ? '🍖' : '🎬'}
+              {/* Lado derecho: Píldora de porcentaje colorida */}
+              <div className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-black transition-all shrink-0 shadow-xs ${
+                currentPhase === 'ready'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/30 scale-105'
+                  : currentPhase === 'hunting'
+                  ? 'bg-gradient-to-r from-violet-600 via-fuchsia-500 to-pink-500 text-white shadow-md shadow-fuchsia-500/25'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200/80'
+              }`}>
+                {currentPhase === 'ready' ? '100% LISTO' : `${progressPercent}%`}
               </div>
             </div>
+
+            {/* Barra de Progreso Colorida y Minimalista */}
+            <div className="relative w-full h-2.5 sm:h-3 bg-slate-100/90 rounded-full overflow-hidden border border-slate-200/70 p-[2px] shadow-inner">
+              <div
+                style={{ width: `${progressPercent}%` }}
+                className={`h-full rounded-full transition-all duration-75 relative ${
+                  currentPhase === 'hunting'
+                    ? 'bg-gradient-to-r from-violet-500 via-fuchsia-500 via-sky-400 to-emerald-400 shadow-[0_0_12px_rgba(236,72,153,0.7)]'
+                    : currentPhase === 'ready'
+                    ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 shadow-[0_0_12px_rgba(16,185,129,0.7)]'
+                    : 'bg-slate-300'
+                }`}
+              >
+                {/* Brillo dinámico que recorre la barra */}
+                {currentPhase === 'hunting' && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                )}
+              </div>
+            </div>
+
+            {/* Micro-etiquetas de pasos coloridos */}
+            <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 mt-2 px-1">
+              <span className={`flex items-center gap-1 transition-colors ${progressPercent >= 10 ? 'text-violet-600 font-bold' : ''}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${progressPercent >= 10 ? 'bg-violet-500 shadow-xs shadow-violet-500/50' : 'bg-slate-300'}`} />
+                Conexión
+              </span>
+              <span className={`flex items-center gap-1 transition-colors ${progressPercent >= 40 ? 'text-fuchsia-600 font-bold' : ''}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${progressPercent >= 40 ? 'bg-fuchsia-500 shadow-xs shadow-fuchsia-500/50' : 'bg-slate-300'}`} />
+                Análisis
+              </span>
+              <span className={`flex items-center gap-1 transition-colors ${progressPercent >= 75 ? 'text-sky-600 font-bold' : ''}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${progressPercent >= 75 ? 'bg-sky-500 shadow-xs shadow-sky-500/50' : 'bg-slate-300'}`} />
+                Extracción
+              </span>
+              <span className={`flex items-center gap-1 transition-colors ${progressPercent >= 100 ? 'text-emerald-600 font-bold' : ''}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${progressPercent >= 100 ? 'bg-emerald-500 shadow-xs shadow-emerald-500/50' : 'bg-slate-300'}`} />
+                Listo
+              </span>
+            </div>
+
           </div>
         </div>
 
-        {/* 4. Barra de Entrada y Botón de Acción (Optimización Móvil Responsiva) */}
-        <div className="w-full max-w-2xl bg-white/80 sm:bg-white/70 backdrop-blur-2xl border border-white/60 rounded-3xl sm:rounded-full p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-[0_16px_45px_rgba(60,82,96,0.18)] focus-within:bg-white transition-all">
-          <div className="flex items-center flex-1 min-w-0 pl-3 pr-2">
-            <div className="text-slate-500 mr-2.5 shrink-0">
-              <Search className="w-5 h-5" />
+        {/* 4. Barra de Entrada y Botón de Acción (Claramente MÁS GRANDE que el temporizador) */}
+        <div className="w-full max-w-3xl sm:max-w-4xl bg-white/90 sm:bg-white/80 backdrop-blur-2xl border border-white/80 rounded-3xl sm:rounded-full p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-[0_18px_50px_rgba(60,82,96,0.18)] focus-within:bg-white focus-within:shadow-[0_24px_60px_rgba(60,82,96,0.25)] focus-within:border-white transition-all">
+          <div className="flex items-center flex-1 min-w-0 pl-3 sm:pl-4 pr-2">
+            <div className="text-slate-400 mr-2.5 sm:mr-3 shrink-0">
+              <Search className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
 
             <input
@@ -601,12 +602,12 @@ export default function GryphHomePage() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleFetch();
               }}
-              className="w-full py-2 text-xs sm:text-sm text-slate-900 placeholder-slate-500 bg-transparent focus:outline-none font-medium truncate"
+              className="w-full py-2.5 sm:py-3.5 text-xs sm:text-base text-slate-900 placeholder-slate-400 bg-transparent focus:outline-none font-medium truncate"
             />
 
             {url && detectedCurrentPlatform !== 'Web' && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-900 text-white shadow-xs shrink-0 mr-1 animate-fadeIn select-none">
-                <span className={`w-1.5 h-1.5 rounded-full ${
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-900 text-white shadow-xs shrink-0 mr-1.5 animate-fadeIn select-none">
+                <span className={`w-2 h-2 rounded-full ${
                   detectedCurrentPlatform === 'Facebook' ? 'bg-blue-400' :
                   detectedCurrentPlatform === 'YouTube' ? 'bg-red-400' :
                   detectedCurrentPlatform === 'TikTok' ? 'bg-emerald-400' :
@@ -626,18 +627,18 @@ export default function GryphHomePage() {
                   resetToIdle();
                   setVideoInfo(null);
                 }}
-                className="p-1.5 text-slate-400 hover:text-slate-800 transition-colors shrink-0"
+                className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-800 transition-colors shrink-0"
                 title="Limpiar"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handlePaste}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-white/80 hover:bg-white rounded-full border border-slate-200 shadow-xs transition-colors shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white/90 hover:bg-white rounded-full border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors shrink-0"
               >
-                <Clipboard className="w-3 h-3 text-slate-500" />
+                <Clipboard className="w-3.5 h-3.5 text-slate-500" />
                 <span className="hidden sm:inline">Pegar</span>
               </button>
             )}
@@ -647,7 +648,7 @@ export default function GryphHomePage() {
           <button
             onClick={handleFetch}
             disabled={currentPhase === 'hunting'}
-            className={`w-full sm:w-auto px-6 sm:px-8 py-3 rounded-full font-black text-xs sm:text-sm tracking-wider uppercase transition-all flex items-center justify-center gap-2 shadow-md select-none shrink-0 ${
+            className={`w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-3.5 rounded-2xl sm:rounded-full font-black text-xs sm:text-sm tracking-wider uppercase transition-all flex items-center justify-center gap-2 shadow-md select-none shrink-0 ${
               currentPhase === 'ready'
                 ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/35 animate-pulse'
                 : currentPhase === 'hunting'
@@ -663,7 +664,10 @@ export default function GryphHomePage() {
                 <span>¡DESCARGAR AHORA!</span>
               </>
             ) : (
-              <span>Cazar</span>
+              <>
+                <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
+                <span>Cazar</span>
+              </>
             )}
           </button>
         </div>

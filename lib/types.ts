@@ -37,31 +37,36 @@ export function detectPlatform(url: string): string {
   return 'Web';
 }
 
-export function buildPlatformFormats(platform: string): FormatOption[] {
+export function buildPlatformFormats(platform: string, isLongVideo = false): FormatOption[] {
+  const isTikTok = platform === 'TikTok';
+
   return [
     {
       formatId: 'bestaudio',
-      quality: `${platform} Audio (MP3)`,
-      resolution: 'Audio Estéreo (128-320 kbps)',
+      quality: isTikTok ? 'TikTok Audio (MP3 • Sin marca)' : `${platform} Audio (MP3)`,
+      resolution: isTikTok ? 'Audio Original Estéreo (MP3)' : 'Audio Estéreo (128-320 kbps)',
       ext: 'mp3',
       type: 'audio',
-      isPremium: false,
+      isPremium: isLongVideo,
+      premiumReason: isLongVideo ? 'El audio dura más de 1 hora requiere Plan Pro' : undefined,
     },
     {
       formatId: '720p',
-      quality: `${platform} Video (720p HD)`,
-      resolution: '1280x720 • MP4 Video',
+      quality: isTikTok ? 'TikTok Video (Sin marca de agua)' : `${platform} Video (720p HD)`,
+      resolution: isTikTok ? 'HD MP4 • Sin marca de agua' : '1280x720 • MP4 Video',
       ext: 'mp4',
       type: 'video',
-      isPremium: false,
+      isPremium: isLongVideo,
+      premiumReason: isLongVideo ? 'Videos largos (+1 hora) requieren Plan Pro' : undefined,
     },
     {
       formatId: '1080p',
-      quality: `${platform} Video (1080p Full HD)`,
-      resolution: '1920x1080 • MP4 Video',
+      quality: isTikTok ? 'TikTok Video (Full HD Sin marca)' : `${platform} Video (1080p Full HD)`,
+      resolution: isTikTok ? '1080p Full HD • Sin marca de agua' : '1920x1080 • MP4 Video',
       ext: 'mp4',
       type: 'video',
-      isPremium: false,
+      isPremium: isLongVideo,
+      premiumReason: isLongVideo ? 'Videos mayores a 1 hora requieren Plan Pro' : undefined,
     },
     {
       formatId: '4k',

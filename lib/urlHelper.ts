@@ -76,8 +76,8 @@ export async function cleanAndResolveUrl(rawUrl: string): Promise<string> {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   let url = rawUrl.trim();
 
-  // 1. Resolve shortlinks and share links (facebook.com/share/, pin.it, fb.watch, vm.tiktok.com, etc.)
-  const needsResolution = /facebook\.com\/share|pin\.it|fb\.watch|vm\.tiktok\.com|vt\.tiktok\.com|bit\.ly|tinyurl\.com/i.test(url);
+  // 1. Resolve shortlinks and share links (facebook.com/share/, pin.it, fb.watch, vm.tiktok.com, vt.tiktok.com, tiktok.com/t/, etc.)
+  const needsResolution = /facebook\.com\/share|pin\.it|fb\.watch|vm\.tiktok\.com|vt\.tiktok\.com|tiktok\.com\/t\/|bit\.ly|tinyurl\.com/i.test(url);
   if (needsResolution) {
     try {
       const resolved = await followRedirects(url);
@@ -93,6 +93,9 @@ export async function cleanAndResolveUrl(rawUrl: string): Promise<string> {
   }
   if (url.includes('m.youtube.com')) {
     url = url.replace('m.youtube.com', 'www.youtube.com');
+  }
+  if (url.includes('m.tiktok.com')) {
+    url = url.replace('m.tiktok.com', 'www.tiktok.com');
   }
 
   // 3. Fallback normalization for any lingering share URLs

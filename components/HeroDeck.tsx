@@ -56,14 +56,14 @@ export default function HeroDeck({ onSelectSample }: HeroDeckProps) {
     },
     {
       id: 5,
-      title: 'Shorts & Audio',
+      title: 'TikTok Sin Marca',
       platform: 'TikTok',
-      badge: 'Music MP3',
+      badge: 'Sin Marca',
       gradient: 'from-emerald-500 via-teal-600 to-cyan-700',
       rotation: 'rotate-12 translate-y-6',
-      sampleUrl: 'https://www.tiktok.com',
-      author: '@sound.lab',
-      stats: '240k',
+      sampleUrl: 'https://www.tiktok.com/@tiktok/video/7106594312292453675',
+      author: '@tiktok',
+      stats: '2.4M',
     },
   ];
 

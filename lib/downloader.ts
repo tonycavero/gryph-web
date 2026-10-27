@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
-import { FormatOption, VideoInfo, detectPlatform } from './types';
+import { FormatOption, VideoInfo, detectPlatform, buildPlatformFormats } from './types';
 import { cleanAndResolveUrl } from './urlHelper';
 import { getYtDlpBinary } from './platformBin';
 
@@ -28,41 +28,7 @@ function buildFallbackInfo(
   customUploader?: string,
   previewUrl?: string
 ): VideoInfo {
-  const formats: FormatOption[] = [
-    {
-      formatId: 'bestaudio',
-      quality: `${platform} Audio (MP3)`,
-      resolution: 'Audio Estéreo (128-320 kbps)',
-      ext: 'mp3',
-      type: 'audio',
-      isPremium: false,
-    },
-    {
-      formatId: '720p',
-      quality: `${platform} Video (720p HD)`,
-      resolution: '1280x720 • MP4 Video',
-      ext: 'mp4',
-      type: 'video',
-      isPremium: false,
-    },
-    {
-      formatId: '1080p',
-      quality: `${platform} Video (1080p Full HD)`,
-      resolution: '1920x1080 • MP4 Video',
-      ext: 'mp4',
-      type: 'video',
-      isPremium: false,
-    },
-    {
-      formatId: '4k',
-      quality: `${platform} Video (4K Ultra HD)`,
-      resolution: '3840x2160 • 4K UHD Pro',
-      ext: 'mp4',
-      type: 'video',
-      isPremium: true,
-      premiumReason: 'Descarga en resolución 4K exclusiva del Plan Pro',
-    },
-  ];
+  const formats: FormatOption[] = buildPlatformFormats(platform, false);
 
   return {
     id: 'media_' + Date.now(),
@@ -160,17 +126,46 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
       } catch {}
     }
   } else if (platform === 'TikTok') {
+    // 1. Pre-fetch metadata and direct unwatermarked preview video from TikWM
     try {
-      const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl)}`, {
-        signal: AbortSignal.timeout(3500),
+      const tikRes = await fetch('https://www.tikwm.com/api/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
+        body: new URLSearchParams({ url: targetUrl, hd: '1' }).toString(),
+        signal: AbortSignal.timeout(4000),
       });
-      if (res.ok) {
-        const oe = await res.json();
-        if (oe.title) oembedTitle = oe.title;
-        if (oe.author_name) oembedAuthor = oe.author_name;
-        if (oe.thumbnail_url) oembedThumbnail = oe.thumbnail_url;
+      if (tikRes.ok) {
+        const tikData = await tikRes.json();
+        if (tikData.code === 0 && tikData.data) {
+          if (tikData.data.title) oembedTitle = tikData.data.title;
+          if (tikData.data.author?.nickname || tikData.data.author?.unique_id) {
+            oembedAuthor = tikData.data.author.nickname || tikData.data.author.unique_id;
+          }
+          if (tikData.data.cover) oembedThumbnail = tikData.data.cover;
+          if (tikData.data.play || tikData.data.hdplay) {
+            oembedPreviewUrl = tikData.data.play || tikData.data.hdplay;
+          }
+        }
       }
     } catch {}
+
+    // 2. Fallback to official TikTok oEmbed if title is missing
+    if (!oembedTitle) {
+      try {
+        const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(targetUrl)}`, {
+          signal: AbortSignal.timeout(3000),
+        });
+        if (res.ok) {
+          const oe = await res.json();
+          if (oe.title) oembedTitle = oe.title;
+          if (oe.author_name && !oembedAuthor) oembedAuthor = oe.author_name;
+          if (oe.thumbnail_url && !oembedThumbnail) oembedThumbnail = oe.thumbnail_url;
+        }
+      } catch {}
+    }
   }
 
   return new Promise((resolve) => {
@@ -263,45 +258,7 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
           const data = JSON.parse(trimmed);
           const duration = Number(data.duration) || 0;
           const isLongVideo = duration > 3600; // Videos mayores a 1 hora
-
-          const formats: FormatOption[] = [
-            {
-              formatId: 'bestaudio',
-              quality: `${platform} Audio (MP3)`,
-              resolution: 'Audio Estéreo (128-320 kbps)',
-              ext: 'mp3',
-              type: 'audio',
-              isPremium: isLongVideo,
-              premiumReason: isLongVideo ? 'El audio dura más de 1 hora (1 hora, 2 horas requiere Plan Pro)' : undefined,
-            },
-            {
-              formatId: '720p',
-              quality: `${platform} Video (720p HD)`,
-              resolution: '1280x720 • MP4 Video',
-              ext: 'mp4',
-              type: 'video',
-              isPremium: isLongVideo,
-              premiumReason: isLongVideo ? 'Videos largos (+1 hora, 2 horas) requieren Plan Pro' : undefined,
-            },
-            {
-              formatId: '1080p',
-              quality: `${platform} Video (1080p Full HD)`,
-              resolution: '1920x1080 • MP4 Video',
-              ext: 'mp4',
-              type: 'video',
-              isPremium: isLongVideo,
-              premiumReason: isLongVideo ? 'Videos mayores a 1 hora, 2 horas requieren Plan Pro' : undefined,
-            },
-            {
-              formatId: '4k',
-              quality: `${platform} Video (4K Ultra HD)`,
-              resolution: '3840x2160 • 4K UHD Pro',
-              ext: 'mp4',
-              type: 'video',
-              isPremium: true,
-              premiumReason: 'Descarga en resolución 4K exclusiva del Plan Pro',
-            },
-          ];
+          const formats: FormatOption[] = buildPlatformFormats(platform, isLongVideo);
 
           // Extract thumbnail with robust fallbacks
           let thumbnail = oembedThumbnail || data.thumbnail || '';
@@ -316,6 +273,7 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
           }
 
           // Direct MP4 stream for first-frame or video clip preview (e.g. Facebook or live clip preview)
+          // Filter out watermarked streams to ensure clean preview
           let previewUrl: string | undefined = undefined;
           if (Array.isArray(data.formats) && data.formats.length > 0) {
             const videoStream = data.formats.find(
@@ -324,14 +282,16 @@ export async function fetchVideoInfo(rawTargetUrl: string): Promise<VideoInfo> {
                 f.url &&
                 f.vcodec !== 'none' &&
                 (f.ext === 'mp4' || f.video_ext === 'mp4' || f.format_note === 'hd' || f.format_note === 'sd') &&
-                !f.url.includes('.m3u8')
+                !f.url.includes('.m3u8') &&
+                (!f.format_note || !f.format_note.includes('watermarked')) &&
+                f.format_id !== 'download'
             );
             if (videoStream?.url) {
               previewUrl = videoStream.url;
             }
           }
 
-          const resolvedPreview = previewUrl || oembedPreviewUrl;
+          const resolvedPreview = oembedPreviewUrl || previewUrl;
           const resolvedTitle = (oembedTitle && (!data.title || data.title.startsWith('Pinterest video #') || data.title.includes('Video & Audio')))
             ? oembedTitle
             : (data.title || oembedTitle || `${platform} Video`);
