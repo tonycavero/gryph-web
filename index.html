@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gryph/ — Video Hunter</title>
+  <title>Gryph/ — Video Downloader</title>
   <style>
     /* Reset & Design System */
     *, *::before, *::after {
@@ -394,7 +394,7 @@
     <div class="brand-dash"></div>
 
     <!-- Subtitle -->
-    <p class="hero-subtitle">Paste your link and let the hunt begin</p>
+    <p class="hero-subtitle">Paste your link and download instantly</p>
 
     <!-- Hunt Stage (Mascot Arena) -->
     <div id="huntStage" class="hunt-stage">
@@ -502,7 +502,7 @@
         return;
       }
 
-      // Phase 2: The Hunt (La Caza)
+      // Phase 2: Processing (Descarga)
       currentPhase = 'hunting';
       btnAction.disabled = true;
       btnAction.className = 'btn-action hunting';

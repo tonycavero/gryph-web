@@ -82,7 +82,7 @@ export default function AdBanner({
   }
 
   // 4. Banner Central Móvil / Scroll (300x250)
-  // Inmediatamente visible al hacer scroll debajo del botón "Cazar" / área de resultados
+  // Inmediatamente visible al hacer scroll debajo del botón "Descargar" / área de resultados
   return (
     <aside
       aria-label="Espacio Publicitario Central 300x250"

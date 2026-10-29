@@ -11,7 +11,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Gryph/ — Caza tus videos y audios favoritos al instante',
+  title: 'Gryph/ — Descarga tus videos y audios favoritos al instante',
   description: 'Descarga videos y audios de YouTube, Facebook, Pinterest, TikTok e Instagram en MP4 y MP3 de alta fidelidad.',
   icons: {
     icon: '/logo.png',

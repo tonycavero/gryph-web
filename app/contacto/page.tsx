@@ -4,7 +4,7 @@ import { ArrowLeft, Mail, MessageSquare, Clock, ShieldCheck, Send } from 'lucide
 
 export const metadata = {
   title: 'Contacto y Soporte — Gryph/',
-  description: 'Canal oficial de atención, soporte técnico y consultas legales para Gryph/ Video Hunter.',
+  description: 'Canal oficial de atención, soporte técnico y consultas legales para Gryph/ Video Downloader.',
 };
 
 export default function ContactoPage() {
@@ -59,7 +59,7 @@ export default function ContactoPage() {
             </div>
 
             <a
-              href="mailto:tonycavero40@gmail.com?subject=Consulta%20Gryph/%20Video%20Hunter"
+              href="mailto:tonycavero40@gmail.com?subject=Consulta%20Gryph/%20Video%20Downloader"
               className="px-5 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-sm transition-all hover:scale-105 flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-center"
             >
               <span>Escribir Correo</span>

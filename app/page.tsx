@@ -355,7 +355,7 @@ export default function GryphHomePage() {
     },
     {
       q: '¿Cómo descargo solo el audio de un video?',
-      a: 'Pega tu enlace de Facebook, YouTube, TikTok o Pinterest y presiona Cazar. En la tarjeta de formatos podrás elegir la opción específica de audio (por ejemplo "TikTok Audio" o "YouTube Audio"), la cual se descargará en formato MP3 con la mejor calidad estéreo.',
+      a: 'Pega tu enlace de Facebook, YouTube, TikTok o Pinterest y presiona Descargar. En la tarjeta de formatos podrás elegir la opción específica de audio (por ejemplo "TikTok Audio" o "YouTube Audio"), la cual se descargará en formato MP3 con la mejor calidad estéreo.',
     },
     {
       q: '¿Cómo funciona el temporizador de carga?',
@@ -469,7 +469,7 @@ export default function GryphHomePage() {
 
           {/* Titular Principal */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-[1.14] drop-shadow-[0_2px_18px_rgba(0,0,0,0.22)]">
-            Caza tus videos y audios favoritos al instante.
+            Descarga tus videos y audios favoritos al instante.
           </h1>
 
           {/* Subtítulo en letras pequeñas */}
@@ -657,7 +657,7 @@ export default function GryphHomePage() {
             }`}
           >
             {currentPhase === 'hunting' ? (
-              <span>Cazando ({progressPercent}%)...</span>
+              <span>Descargando ({progressPercent}%)...</span>
             ) : currentPhase === 'ready' ? (
               <>
                 <Download className="w-4 h-4 stroke-[3]" />
@@ -666,7 +666,7 @@ export default function GryphHomePage() {
             ) : (
               <>
                 <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
-                <span>Cazar</span>
+                <span>Descargar</span>
               </>
             )}
           </button>
@@ -890,7 +890,7 @@ export default function GryphHomePage() {
           </div>
         )}
 
-        {/* Banner Publicitario Central (300x250) - Inmediatamente debajo del botón Cazar / Resultados */}
+        {/* Banner Publicitario Central (300x250) - Inmediatamente debajo del botón Descargar / Resultados */}
         <AdBanner type="rectangle" slotId="SLOT_CENTRAL_300x250" />
       </main>
 
@@ -1063,7 +1063,7 @@ export default function GryphHomePage() {
               className="w-7 h-7 object-contain drop-shadow-sm filter contrast-105" 
             />
             <span>Gryph<span className="text-amber-600">/</span></span>
-            <span className="text-xs font-normal text-slate-600">• The Video Hunter</span>
+            <span className="text-xs font-normal text-slate-600">• The Video Downloader</span>
           </div>
           <p className="text-[11px] text-slate-500 max-w-md mx-auto">
             Plataforma de procesamiento multimedia en la nube. No almacenamos contenido con derechos de autor en nuestros servidores.
