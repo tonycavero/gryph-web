@@ -22,15 +22,18 @@ import {
   XCircle,
   PlayCircle,
   Music,
-  Video
+  Video,
+  FileText
 } from 'lucide-react';
 import AdBanner from '@/components/AdBanner';
 import PremiumModal from '@/components/PremiumModal';
+import DocToPptSection from '@/components/DocToPptSection';
 import { VideoInfo, FormatOption, detectPlatform, buildPlatformFormats } from '@/lib/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'https://gryph-web.onrender.com').replace(/\/+$/, '');
 
 export default function GryphHomePage() {
+  const [activeTab, setActiveTab] = useState<'video' | 'docToPpt'>('video');
   const [url, setUrl] = useState('');
   const [currentPhase, setCurrentPhase] = useState<'idle' | 'hunting' | 'ready'>('idle');
   const [progressPercent, setProgressPercent] = useState(0);
@@ -350,6 +353,10 @@ export default function GryphHomePage() {
 
   const faqs = [
     {
+      q: '¿Cómo funciona la conversión de PDF o Word a PowerPoint con imágenes?',
+      a: 'Sube tu archivo PDF o DOCX en la pestaña "Documento a PPT". Nuestra inteligencia artificial sintetiza el texto en diapositivas ejecutivas, genera ilustraciones temáticas en alta resolución para cada tema y genera un archivo nativo .pptx listo para descargar y presentar.',
+    },
+    {
       q: '¿Los videos de TikTok se descargan sin marca de agua?',
       a: '¡Sí, 100%! AnyLoad extrae el stream limpio de TikTok en máxima definición (HD y Full HD) sin la marca de agua flotante ni el logotipo de TikTok.',
     },
@@ -414,8 +421,20 @@ export default function GryphHomePage() {
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-7 text-xs font-semibold text-white/90">
-            <a href="#hunter" className="hover:text-amber-300 transition-colors">Descargador</a>
+          <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-white/90">
+            <button
+              onClick={() => setActiveTab('video')}
+              className={`hover:text-amber-300 transition-colors ${activeTab === 'video' ? 'text-amber-300 font-bold underline underline-offset-4' : ''}`}
+            >
+              Descargador
+            </button>
+            <button
+              onClick={() => setActiveTab('docToPpt')}
+              className={`hover:text-amber-300 transition-colors flex items-center gap-1.5 ${activeTab === 'docToPpt' ? 'text-amber-300 font-bold underline underline-offset-4' : ''}`}
+            >
+              <span>Doc a PPT</span>
+              <span className="text-[9px] font-black bg-amber-400 text-slate-900 px-1.5 py-0.2 rounded-full">IA</span>
+            </button>
             <span className="flex items-center gap-1.5 text-white">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span>Facebook & Pinterest</span>
@@ -461,7 +480,38 @@ export default function GryphHomePage() {
       {/* 2. Hero Section: Titular en Español con Contraste Puro */}
       <main id="hunter" className="flex-1 max-w-4xl mx-auto px-3 sm:px-5 pt-2 sm:pt-4 pb-12 flex flex-col items-center justify-center text-center relative z-10 w-full scroll-mt-20">
         
-        <div className="max-w-3xl mx-auto px-2">
+        {/* Selector de Pestañas: Descargador Multimedia vs Documento a PowerPoint */}
+        <div className="inline-flex items-center p-1.5 rounded-full bg-slate-900/80 backdrop-blur-xl border border-white/20 mb-6 shadow-2xl">
+          <button
+            onClick={() => setActiveTab('video')}
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-black transition-all ${
+              activeTab === 'video'
+                ? 'bg-amber-400 text-slate-900 shadow-md scale-105'
+                : 'text-white/80 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            <span>Descargador</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('docToPpt')}
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-black transition-all ${
+              activeTab === 'docToPpt'
+                ? 'bg-amber-400 text-slate-900 shadow-md scale-105'
+                : 'text-white/80 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Documento a PPT</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-slate-900 text-amber-300 font-extrabold text-[9px] border border-amber-400/40">
+              IA
+            </span>
+          </button>
+        </div>
+
+        {activeTab === 'video' ? (
+          <>
+            <div className="max-w-3xl mx-auto px-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/25 text-white text-xs font-semibold mb-3 shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             <span>Descarga ultra rápida en MP4 y MP3</span>
@@ -888,6 +938,10 @@ export default function GryphHomePage() {
               ))}
             </div>
           </div>
+        )}
+          </>
+        ) : (
+          <DocToPptSection onShowToast={showToast} />
         )}
 
         {/* Banner Publicitario Central (300x250) - Inmediatamente debajo del botón Descargar / Resultados */}
