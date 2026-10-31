@@ -27,15 +27,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={plusJakartaSans.className}>
-      <head>
-        {/* Adsterra Social Bar (Global Flotante) */}
-        <script
-          type="text/javascript"
-          data-cfasync="false"
-          src="https://bellnewyork.org/14/6ec0a437098881e6170791ba9755c920"
-          async
-        />
-      </head>
       <body className="antialiased selection:bg-neutral-900 selection:text-white">
         {children}
         <CookieConsent />

@@ -86,6 +86,7 @@ export default function AdUnit({
         }}
         scrolling="no"
         frameBorder="0"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
       />
     </div>
   );
